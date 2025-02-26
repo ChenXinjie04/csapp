@@ -5,11 +5,14 @@
 \begin{document}
 \begin{enumerate}[label=\textbf{\Alph*.}]
 	\item \textbf{Identify which local values get stored in callee-saved registers.} \\
-	local value: x, x+1, x+2, x+3, x+4, x+5
+	From line 9 to line 14, we can see that the local values a0-a5 are stored into
+	callee-saved registers \%rbx, \%r15, \%r14, \%r13, \%r12 and \%rbp, respectively.
 	\item \textbf{Identify which local values get stored on the stack.} \\
-	local value: x+6, x+7
+	Local values a6 and a7 are stored on the stack at offset 0 and 8 relative to the
+	stack pointer.
 	\item \textbf{Explain why the program could not store all of the local values in callee-saved
 	registers.} \\
-	Because only registers \%rbx, \%rbp and \%r12-\%r15 are callee-saved registers.
+	After storing six local variables, the program has used up the supply of callee-saved
+	registers. It stores the two local values on the stack.
 \end{enumerate}
 \end{document}
