@@ -1,0 +1,15 @@
+\documentclass{article}
+\usepackage{enumitem}
+\setlength{\parindent}{0pt}
+
+\begin{document}
+\begin{enumerate}[label=\textbf{\Alph*.}]
+	\item \textbf{Identify which local values get stored in callee-saved registers.} \\
+	local value: x, x+1, x+2, x+3, x+4, x+5
+	\item \textbf{Identify which local values get stored on the stack.} \\
+	local value: x+6, x+7
+	\item \textbf{Explain why the program could not store all of the local values in callee-saved
+	registers.} \\
+	Because only registers \%rbx, \%rbp and \%r12-\%r15 are callee-saved registers.
+\end{enumerate}
+\end{document}
