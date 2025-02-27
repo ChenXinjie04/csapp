@@ -1,0 +1,14 @@
+\documentclass{article}
+\usepackage{enumitem}
+
+\begin{document}
+These computations are direct applications of Equation $3.1$.
+\begin{itemize}
+	\item For $L=4$, $C=16$, and $j=0$, pointer $Aptr$ is computed as
+	$x_A+4\cdot(16i+0) = x_A+64i$.
+	\item For $L=4$, $C=16$, $i=0$, and $j=k$, pointer $Bptr$ is computed as
+	$x_B+4\cdot(16\cdot0+k) = x_B+4k$.
+	\item For $L=4$, $C=16$, $i=N$, and $j=k$, pointer $Cptr$ is computed as
+	$x_C+4\cdot(16\cdot16+k) = x_C+1024+4k$.
+\end{itemize}
+\end{document}

@@ -1,0 +1,14 @@
+\documentclass{article}
+
+\begin{document}
+\begin{tabular}{l l l l}
+	Expression & Type & Value & Assembly code \\
+	\hline
+	$S+1$ & short $*$ & $x_s+2$ & \texttt{leaq 2(\%rdx),\%rax} \\
+	$S[3]$ & short & $M[x_S+6]$ & \texttt{movw 6(\%rdx),\%ax} \\
+	$\&S[i]$ & short $*$ & $x_S+2i$ & \texttt{leaq (\%rdx,\%rcx,2),\%rax} \\
+	$S[4*i+1]$ & short & $M[x_S+8i+2]$ & \texttt{movw 2(\%rdx,\%rcx,8),\%ax} \\
+	$S+i-5$ & sort $*$ & $x_S+2i-10$ & \texttt{leaq -10(\%rdx,\%rcx,2),\%rax} \\
+	\hline
+\end{tabular}
+\end{document}
