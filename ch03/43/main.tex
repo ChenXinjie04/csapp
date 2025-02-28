@@ -1,0 +1,21 @@
+\documentclass{article}
+
+\begin{document}
+\begin{tabular}{l l l}
+	\textit{expr} & \textit{type} & \textit{Code} \\
+	\hline
+	up$\rightarrow$t1.v & short & \texttt{movw 8(\%rdi), \%rax} \\
+	&&\texttt{movw \%rax, (\%rsi)} \\
+	\&up$\rightarrow$t1.w & char & \texttt{leaq 10(\%rdi), \%rax} \\
+	&&\texttt{movq \%rax, (\%rsi)} \\
+	up$\rightarrow$t2.a & int $*$ & \texttt{leaq \%rdi, \%rax} \\
+	&&\texttt{movq \%rax, (\%rsi)} \\
+	up$\rightarrow$t2.a[up$\rightarrow$t1.u] & int & \texttt{movq (\%rdi), \%rax} \\
+	&& \texttt{movl (\%rdi, \%rax, 4), \%eax} \\
+	&& \texttt{movl \%eax, (\%rsi)} \\
+	$*$up$\rightarrow$t2.p & char & \texttt{movq 8(\%rdi), \%rax} \\
+	&& \texttt{movb (\%rax), \%al} \\
+	&& \texttt{movb \%al, (\%rsi)} \\
+	\hline
+\end{tabular}
+\end{document}
