@@ -1,0 +1,39 @@
+\documentclass{article}
+\usepackage{enumitem}
+
+\begin{document}
+For each of the following structure declarations, determine the offset of each field,
+the total size of the structure, and its alignment requirement for x86-64:
+\begin{enumerate}[label=\textbf{\Alph*.}]
+	\item \texttt{struct P1 \{int i; char c; int j; char d;\}} \\
+	\begin{tabular}{c c c c c c}
+		i & c & j & d & total size & alignment \\
+		\hline
+		0 & 4 & 8 & 12 & 16 & 4 \\
+	\end{tabular}
+	\item \texttt{struct P2 \{int i; char c; char d; long j;\}} \\
+	\begin{tabular}{c c c c c c}
+		i & c & d & j & total size & alignment \\
+		\hline
+		0 & 4 & 5 & 8 & 16 & 8 \\
+	\end{tabular}
+	\item \texttt{struct P3 \{short w[3], char c[3];\};} \\
+	\begin{tabular}{c c c c}
+		w & c & total size & alignment \\
+		\hline
+		0 & 6 & 10 & 2 \\
+	\end{tabular}
+	\item \texttt{struct P4 \{short w[5]; char *c[3];\};} \\
+	\begin{tabular}{c c c c}
+		w & c & total size & alignment \\
+		\hline
+		0 & 16 & 40 & 8 \\
+	\end{tabular}
+	\item \texttt{struct P5 \{struct P3 a[2]; struct P2 t;\};} \\
+	\begin{tabular}{c c c c}
+		P3 & P2 & total size & alignment \\
+		\hline
+		0 & 24 & 40 & 8 \\
+	\end{tabular}
+\end{enumerate}
+\end{document}

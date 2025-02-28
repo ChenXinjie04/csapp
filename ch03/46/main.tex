@@ -1,0 +1,41 @@
+\documentclass{article}
+\usepackage{enumitem}
+
+\begin{document}
+\begin{enumerate}[label=\textbf{\Alph*.}]
+	\item
+\begin{tabular}{|c c c c c c c c| c}
+	\hline
+	00 & 00 & 00 & 00 & 00 & 40 & 00 & 76 & Return address \\
+	\hline
+	01 & 23 & 45 & 67 & 89 & AB & CD & EF & Saved \%rbx \\
+	\hline
+	&&&&&&&&\\
+	\hline
+	&&&&&&&&\\
+	\hline
+\end{tabular}
+	\item \textbf{Modify your diagram to show te effect of the call to gets(line 5).}
+\begin{tabular}{|c c c c c c c c| c}
+	\hline
+	00 & 00 & 00 & 00 & 00 & 40 & 00 & 34 & Return address \\
+	\hline
+	33 & 32 & 31 & 30 & 39 & 38 & 37 & 36 & Saved \%rbx \\
+	\hline
+	35 & 34 & 33 & 32 & 31 & 30 & 39 & 38 & $\leftarrow$ buf = \%rsp \\
+	\hline
+	37 & 36 & 35 & 34 & 33 & 32 & 31 & 30 & $\leftarrow$ buf = \%rsp \\
+	\hline
+\end{tabular}
+	\item \textbf{To what address does the program attempt to return?} \\
+	The program is attempting to return to address 0x400034. The lower-order two bytes
+	were overwritten by the code for character '4' and terminating null character.
+	\item  \textbf{What register(s) have corrupted value(s) when get\_line returns?} \\
+	The saved value for register \%rbx will be loaded into the register before
+	\textit{get\_line} returns.
+	\item \textbf{Besides the potential for buffer overflow, what other things are wrong
+	with the code for \textit{get\_line}?} \\
+	The call to malloc should have had \textit{strlen(buf)+1} as its argument, and
+	the code should also check that the returned value is not equal to \textit{NULL}.
+\end{enumerate}
+\end{document}

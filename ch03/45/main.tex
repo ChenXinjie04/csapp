@@ -1,0 +1,41 @@
+\documentclass{article}
+\usepackage{enumitem}
+
+\begin{document}
+\begin{enumerate}[label=\textbf{\Alph*.}]
+	\item \textbf{What are the byte offsets of all the fields in the structure?}
+	\begin{tabular}{c c c c c c c c c}
+		Field & a & b & c & d & e & f & g & h \\
+		\hline
+		size & 8 & 2 & 8 & 1 & 4 & 1 & 8 & 4 \\
+		offset & 0 & 8 & 16 & 24 & 28 & 32 & 40 & 48 \\
+	\end{tabular}
+	\item \textbf{What is the total size of the structure?}
+	The total size of the structure is 56 bytes. The end of the structure must be padded
+	with 4 bytes to satisfy the 8 bytes alignment.
+	\item \textbf{Rearrange the fields of the structure to minimize wasted space,
+	and then show the byte offsets and total size of the rearranged structure.} \\
+	One strategy that works, when all data element have a length equal to a power of 2,	
+	is to order the structure elements in descending order of size. This leads to a
+	declaration \\
+	struct \{ \\
+		char *a; \\
+		double c; \\
+		long g; \\
+		float e; \\
+		int h; \\
+		short b; \\
+		char d; \\
+		char f; \\
+	\} \\
+	with the following offsets:
+	\begin{tabular}{c c c c c c c c c}
+		Field & a & c & g & e & h & b & d & f \\
+		\hline
+		size & 8 & 8 & 8 & 4 & 4 & 2 & 1 & 1 \\
+		offset & 0 & 8 & 16 & 24 & 28 & 32 & 34 & 35 \\
+	\end{tabular}
+	The structure must be padded by 4 bytes to satisfy the 8-byte alignment requirement,
+	giving a total of 40 bytes.
+\end{enumerate}
+\end{document}
