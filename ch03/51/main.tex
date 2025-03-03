@@ -1,0 +1,14 @@
+\documentclass{article}
+
+\begin{document}
+\begin{tabular}{c c l}
+	$T_x$ & $T_y$ & Instruction(s) \\
+	\hline
+	long & double & \texttt{vcvtsi2sdq \%rdi, \%xmm0, \%xmm0} \\
+	double & int & \texttt{vcvtsd2si \%xmm0, \%eax} \\
+	float & double & \texttt{vmovddup \%xmm0, \%xmm0} \\
+	&& \texttt{vcvtpd2psx \%xmm0, \%xmm0} \\
+	long & float & \texttt{vcvtsi2ssq \%rdi, \%xmm0, \%xmm0} \\
+	float & long & \texttt{vcvtss2siq \%xmm0, \%rax} \\
+\end{tabular}
+\end{document}

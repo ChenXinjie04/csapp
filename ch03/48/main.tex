@@ -1,0 +1,17 @@
+\documentclass{article}
+
+\begin{document}
+\begin{enumerate}[label=\textbf{\Alph*.}]
+	\item \textbf{For both versions: What are the position in the stack frame for
+	\textit{buf}, \textit{v} and (when present) the canary value?} \\
+	For the unprotected code, we can see that lines 4 and 5 compute the positions of
+	\textit{v} and \textit{buf} to be at offsets 24 and 0 relative to \%rsp. In the
+	protected code the canary is stored at offset 40 (line 4), while \textit{v} and
+	\textit{buf} are stored at offsets 8 and 16 (lines 7 and 8).
+	\item \textbf{ow does the rearranged ordering of the local variables in the
+	protected code provide greater security against a buffer overrun attack?} \\
+	In the protected code, local variable \textit{v} is positioned closer to the top
+	of the stack than \textit{buf}, and so an overrun of \textit{buf} will not
+	corrupt the value of \textit{v}.
+\end{enumerate}
+\end{document}
