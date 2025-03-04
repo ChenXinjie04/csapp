@@ -1,0 +1,18 @@
+\documentclass{article}
+\usepackage{enumitem}
+
+\begin{document}
+\begin{enumerate}[label=\textbf{\Alph*.}]
+	\item \textbf{What are the offsets (in bytes) of the following fields:} \\
+	\begin{tabular}{l l}
+	\texttt{$e_1.p$} & 0 \\
+	\texttt{$e_1.y$} & 8 \\
+	\texttt{$e_2.x$} & 0 \\
+	\texttt{$e_2.next$} & 8
+	\end{tabular}
+	\item \textbf{How many total bytes does the structure require?} \\
+	16 bytes
+	\item \textbf{On the basis of this information, fill in the missing expressions in
+	the code for \texttt{proc}.} \\
+\end{enumerate}
+\end{document}
