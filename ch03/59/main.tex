@@ -1,0 +1,20 @@
+\documentclass{article}
+\parindent=0pt
+
+\begin{document}
+Assume:
+\[
+ux = x_l + x_h * 2^{64}
+\]
+\[
+uy = y_l + y_h * 2^{64}
+\]
+then:
+\[
+ux * uy = x_l * y_l + (x_l * y_h + x_h * y_l) * 2^{64} + x_h * y_h * 2^{128}
+\]
+Since $2^{128}$ overflows and don't care. So:
+\[
+ux * uy = x_l * y_l + (x_l * y_h + x_h * y_l) * 2^{64}
+\]
+\end{document}
