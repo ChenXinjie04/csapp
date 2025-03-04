@@ -1,0 +1,19 @@
+\documentclass{article}
+\usepackage{enumitem}
+
+\begin{document}
+\begin{enumerate}[label=\textbf{\Alph*.}]
+	\item Which registers hold program values x, n, result and mask? \\
+	x in \%rdi, n in \%esi, result in \%rax, mask in \%rdx.
+	\item What are the initial values of result and mask? \\
+	result = 0, mask = 1.
+	\item What is the test condition for mask? \\
+	$mask \neq 0$.
+	\item How does mask get updated? \\
+	mask = mask << n.
+	\item How does result get updated? \\
+	result |= mask \& x.
+	\item Fill in all the missing parts of the C code. \\
+	See main.c.
+\end{enumerate}
+\end{document}
