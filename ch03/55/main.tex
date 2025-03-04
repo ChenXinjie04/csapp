@@ -1,0 +1,12 @@
+\documentclass{article}
+
+\begin{document}
+Looking at the declaration labeled .LC3 we see that the two values are 0(0x00000000)
+and 1077936128(0x40400000). Since the machine use little-endian byte ordering, the
+first value gives the low-order 4 bytes, while the second gives the high-order 4 bytes.	
+From the high-order bytes, we can extract an exponent field of 0x404(1028), from
+which we can subtract a bias of 1023 to get an exponent of 5. Concatenating the
+fraction bits of the two value, we get a fraction field of 0x0000000000000, which
+can be shown to be the fractional binary representation of 0, to which we add the
+implied leading one to get 1.0. The constant is therefore $1.0 \times 2^5 = 32$.
+\end{document}
