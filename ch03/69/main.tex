@@ -1,0 +1,18 @@
+\documentclass{article}
+\usepackage{enumitem}
+
+\begin{document}
+\begin{enumerate}[label=\textbf{\Alph*.}]
+	\item \textbf{The value of \texttt{CNT}.} \\
+	The offset of \texttt{last} in structure \texttt{b\_struct} is 288. And we can
+	infer from the assembly code below that the whole structure is 40-byte aligned.
+	So the value of \texttt{CNT} is 7.
+	\item \textbf{A complete declaration of structure \texttt{a\_struct}. Assume that the only
+	fields in this structure are \texttt{idx} and \texttt{x}, and that both of these
+	contain signed values.} \\
+	\texttt{typedef struct \{ \\
+		long idx; \\
+		long x[4]; \\
+	\} a\_struct;}
+\end{enumerate}
+\end{document}
