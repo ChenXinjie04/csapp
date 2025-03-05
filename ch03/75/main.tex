@@ -1,0 +1,12 @@
+\documentclass{article}
+\usepackage{enumitem}
+
+\begin{document}
+\begin{enumerate}[label=\textbf{\Alph*.}]
+	\item \textbf{How are complex arguments passed to a function?} \\
+	For the $i^{th}$ complex argument, the real part is stored in $xmm_{2i}$ register
+	and the image part is stored in $xmm_{2i+1}$ register.
+	\item \textbf{How are complex values returned from a function?} \\
+	The real part is stored in $xmm_0$ register and the image part is stored in $xmm_1$ register.
+\end{enumerate}
+\end{document}
