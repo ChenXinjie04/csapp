@@ -1,0 +1,29 @@
+\documentclass{article}
+\usepackage{enumitem}
+\usepackage{amsmath}
+
+\begin{document}
+\begin{enumerate}[label=\textbf{\Alph*.}]
+	\item \textbf{Explain, in mathematical terms, the logic in the computation of $s_2$.} \\
+	\[
+	s_2 =
+	\begin{cases}
+		s_1 - (8n + 24) & \text{if n is odd} \\
+		s_1 - (8n + 16) & \text{if n is even}
+	\end{cases}
+	\]
+	\item \textbf{Explain, in mathematical terms, the logic in the computation of $p$.} \\
+	\[
+	p = \lceil \frac{s_2}{16} \rceil \times 16
+	\]
+	\item \textbf{Find values of $n$ and $s_1$ that lead to minimum and maximum values of $e_1$.} \\
+	When n is odd and s1 is multiple of 8 but not multiple of 16 then $e_1$ will have
+	maximum size 24 bytes.
+	When n is even and s1 is multiple of 8 but not multiple of 16
+	then $e_1$ will have minimum size 8 bytes.
+	\item \textbf{What alignment properties does this code guarantee for the value
+	of $s_2$ and $p$?} \\
+	$s_2$ is 8-byte aligned and p is 16-byte aligned.
+
+\end{enumerate}
+\end{document}
