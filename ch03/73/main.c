@@ -26,6 +26,7 @@ range_t find_range(float x) {
 		".done:"
 		: [r] "=r" (result)
 		: [x] "x" (x)
+		: "%xmm1"
 	);
 	return result;
 }
