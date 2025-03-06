@@ -1,0 +1,20 @@
+\documentclass{article}
+
+\begin{document}
+\begin{tabular}{l l l}
+& Generic & Specific \\
+Stage & popq rA & popq \%rax \\
+\hline
+Fetch & $icode:ifun \leftarrow M_1[PC]$ & $icode:ifun \leftarrow M_1[0x02c]=b:0$ \\
+& $rA:rB \leftarrow M_1[PC+1]$ & $rA:rB \leftarrow M_1[0x02d]=0:f$ \\
+& $valP \leftarrow PC+2$ & $valP \leftarrow 0x02c + 2 = 0x02e$ \\
+Decode & $valA \leftarrow R[\%rsp]$ & $valA \leftarrow R[\%rsp] = 120$ \\
+& $valB \leftarrow R[\%rsp]$ & $valB \leftarrow R[\%rsp] = 120$ \\
+Execute & $valE \leftarrow valB + 8$ & $valE \leftarrow 120 + 8 = 128$ \\
+Memory & $valM \leftarrow M_8[valA]$ & $valM \leftarrow M_8[120] = 9$ \\
+Write back & $R[\%rsp] \leftarrow valE$ & $R[\%rsp] \leftarrow 128$ \\
+& $R[rA] \leftarrow valM$ & $R[\%rax] \leftarrow 9$ \\
+PC update & $PC \leftarrow valP$ & $PC \leftarrow 0x02f$ \\
+\end{tabular} \\
+The instruction sets \%rax to 9, sets \%rsp to 128, and increments the PC by 2.
+\end{document}

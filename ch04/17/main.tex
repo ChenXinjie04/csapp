@@ -1,0 +1,17 @@
+\documentclass{article}
+
+\begin{document}
+\begin{tabular}{l l}
+Stage & \texttt{cmovXX rA, rB} \\
+\hline
+Fetch & $icode: ifun \leftarrow M_1[PC]$ \\
+& $rA:rB \leftarrow M_1[PC+1]$ \\
+& $valP \leftarrow PC+2$ \\
+Decode & $valA \leftarrow R[rA]$ \\
+Execute & $Cnd \leftarrow Cond(CC, ifun)$ \\
+& $valE \leftarrow valA + 0$ \\
+Memory & \\
+Write back & if (Cnd) $R[rB] \leftarrow valE$ \\
+PC update & $PC \leftarrow valP$ \\
+\end{tabular}
+\end{document}

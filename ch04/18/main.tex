@@ -1,0 +1,19 @@
+\documentclass{article}
+
+\begin{document}
+\begin{tabular}{l l l}
+& Generic & Specific \\
+Stage & Call Dest & call 0x041 \\
+\hline
+Fetch & $icode:ifun \leftarrow M_1[PC]$ & $icode:ifun \leftarrow M_1[0x037]=8:0$ \\
+& $valC \leftarrow M_8[PC+1]$ & $valC \leftarrow M_8[0x038]=0x41$ \\
+& $valP \leftarrow PC+9$ & $valP \leftarrow 0x037+9=0x040$ \\
+Decode & $valB \leftarrow R[\%rsp]$ & $valB \leftarrow R[\%rsp]=128$ \\
+Execute & $valE \leftarrow valB + (-8)$ & $valE \leftarrow 128 + (-8)=120$ \\
+Memory & $M_8[valE] \leftarrow valP$ & $M_8[120] \leftarrow 0x040$ \\
+Write back & $R[\%rsp] \leftarrow valE$ & $R[\%rsp] \leftarrow 120$ \\
+PC update & $PC \leftarrow valP$ & $PC \leftarrow 0x041$ \\
+\end{tabular} \\
+The effect of this instruction is to set \%rsp to 120, to store 0x040 at this memory
+address, and to set the PC to 0x041 (the call target). \\
+\end{document}
