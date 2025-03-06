@@ -1,0 +1,19 @@
+\documentclass{article}
+
+\begin{document}
+\begin{tabular}{l l l}
+& Generic & Specific \\
+Stage & \texttt{irmovq V, rB} & \texttt{irmovq \$128, \%rsp} \\
+\hline
+Fetch & $icode:ifun \leftarrow M_1[PC]$ & $icode:ifun \leftarrow M_1[0x016] = 3:0$ \\
+& $rA:rB \leftarrow M_1[PC+1]$ & $rA:rB \leftarrow M_1[0x017] = f:4$ \\
+& $valC \leftarrow M_8[PC+2]$ & $valC \leftarrow M_8[0x018] = 0x80$ \\
+& $valP \leftarrow PC+10$ & $valP \leftarrow 0x016 + 0x00a = 0x020$ \\
+Decode & & \\
+Execute & $valE \leftarrow 0 + valC$ & $ valE \leftarrow 0 + 0x80 = 0x80$ \\
+Memory & & \\
+Write back & $R[rB] \leftarrow valE$ & $R[\%rsp] \leftarrow 0x80$ \\
+PC update & $PC \leftarrow valP$ & $PC \leftarrow 0x020$ \\
+\end{tabular}
+This instruction set register \%rsp to 128 and increments the PC by 10.
+\end{document}
