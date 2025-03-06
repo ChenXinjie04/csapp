@@ -1,0 +1,28 @@
+\documentclass{article}
+\usepackage{enumitem}
+
+\begin{document}
+\begin{enumerate}[label=\textbf{\Alph*.}]
+	\item 30f3 fcff ffff ffff ffff 4063 0008 0000 0000 0000 00 \\
+	\texttt{irmovq \$-4, \%rbx} \\
+	\texttt{immovq \%rsi, 0x800(\%rbx)}
+	\item a06f 800c 0200 0000 0000 0000 30f3 0a00 0000 0000 0000 90 \\
+	\texttt{pushq \%rsi} \\
+	\texttt{call 0x20c} \\
+	\texttt{halt} \\
+	\texttt{irmovq \$10, \%rbx} \\
+	\texttt{ret}
+	\item 5054 0700 0000 0000 0000 10f0 b01f \\
+	\texttt{mrmovq 7(\%rsp), \%rbp} \\
+	\texttt{nop} \\
+	Since f0 is an invalid initial byte.
+	\item 6113 7300 0400 0000 0000 0000 \\
+	\texttt{loop:} \\
+	\hspace*{5mm} \texttt{subq \%rcx, \%rbx} \\
+	\hspace*{5mm} \texttt{je loop} \\
+	\hspace*{5mm} \texttt{halt}
+	\item 6362 a0f0 \\
+	\texttt{xorq \%rsi, \%rdx} \\
+	f is not a valid register identifier.
+\end{enumerate}
+\end{document}
