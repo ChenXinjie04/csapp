@@ -1,0 +1,9 @@
+\documentclass{article}
+
+\begin{document}
+\texttt{word aluB = [ \\
+\hspace*{17mm} icode in \{IOPQ, IRMMOVQ, IMRMOVQ, IPUSHQ, IPOPQ, ICALL, IRET} : valB; \\
+\hspace*{17mm} icode in \{IRRMOVQ, IIRMOVQ\} : 0; \\
+\hspace*{17mm} \# Other instructions don't need ALU
+\hspace*{5mm}];}
+\end{document}

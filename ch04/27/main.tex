@@ -1,0 +1,10 @@
+\documentclass{article}
+
+\begin{document}
+\texttt{bool Stat = [ \\
+\hspace*{17mm} imem\_error || dmem\_error : SADR; \\
+\hspace*{17mm} !instr\_valid : SINS; \\
+\hspace*{17mm} icode == IHALT : SHLT; \\
+\hspace*{17mm} 1 : SAOK; \\
+\hspace*{5mm}];}
+\end{document}
