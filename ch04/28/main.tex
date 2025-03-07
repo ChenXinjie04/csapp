@@ -1,0 +1,30 @@
+\documentclass{article}
+\usepackage{enumitem}
+
+\begin{document}
+\begin{enumerate}[label=\textbf{\Alph*.}]
+	\item . \\
+	Insert between stage C and stage D. \\
+	$Throughput = \frac{1\,instruction}{(80 + 30 + 60 + 20)\,picoseconds} \cdot
+	\frac{1,000\,picoseconds}{1\,nanosecond} \approx 5.26 GIPS$. \\
+	The latency is 190ps (80ps + 30ps + 60ps + 20ps). \\
+	\item . \\
+	Between stage B and stage C and stage D and stage E. \\
+	$Throughput = \frac{1\,instruction}{(80 + 30 + 20)\,picoseconds} \cdot
+	\frac{1,000\,picoseconds}{1\,nanosecond} \approx 7.69 GIPS$. \\
+	The latency is 130ps (80ps + 30ps + 20ps). \\
+	\item . \\
+	For a three-stage pipeline, we should have blocks A and B in the first stage,
+	blocks C and D in the second, and blocks E and F in the third. \\
+	$Throughput = \frac{1\,instruction}{(30 + 60 + 20)\,picoseconds} \cdot
+	\frac{1,000\,picoseconds}{1\,nanosecond} \approx 9.09 GIPS$. \\
+	The latency is 110ps (30ps + 60ps + 20ps). \\
+	\item . \\
+	The optimal design would be a five-stage pipeline, with each block in its own
+	stage, except that fifth stage has blocks E and F.
+	$Throughput = \frac{1\,instruction}{(80 + 20)\,picoseconds} \cdot
+	\frac{1,000\,picoseconds}{1\,nanosecond} \approx 10 GIPS$. \\
+	The latency is 100ps (80ps + 20ps). \\
+\end{enumerate}
+
+\end{document}
