@@ -1,0 +1,14 @@
+\documentclass{article}
+\usepackage{enumitem}
+
+\begin{document}
+\begin{enumerate}[label=\textbf{\Alph*.}]
+	\item What would be tthe latency and the throughput of the system,
+	as functions of k? \\
+	$Throughput = \frac{1\,instruction}{\frac{300\,picoseconds}{k} + 20\,picoseconds} \cdot
+	\frac{1,000\,picoseconds}{1\,nanosecond}$ \\
+	The total latency will become $300 + 20k\,ps$.
+	\item What would be the ultimate limit on the throughput? \\
+	As $\lim_{k \to +\infty}$ the throughput will approach to $50\,GIPS$.
+\end{enumerate}
+\end{document}
