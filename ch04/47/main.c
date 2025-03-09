@@ -1,15 +1,12 @@
 /* Bubble sort: Array Version */
 void bubble_b(long *data, long count) {
-	long i;
-	long *p;
-	for (i = count - 1; i > 0; i--) {
-		long *end = data + i;
-		for (p = data; p < end; p++) {
-			long *q = p + 1;
-			if (*p > *q) {
-				long t = *p;
-				*p = *q;
-				*q = t;
+	long *i, *last;
+	for (last = data + count - 1; last > data; last--) {
+		for (i = data; i < last; i++) {
+			if (*(i+1) < *i) {
+				long t = *(i+1);
+				*(i+1) = *i;
+				*i = t;
 			}
 		}
 	}
