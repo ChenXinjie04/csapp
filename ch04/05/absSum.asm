@@ -6,12 +6,11 @@ absSum:
 	jmp test
 loop:
 	mrmovq (%rdi), %r10
-	andq %r10, %r10
-	jge add
-	xorq %r11, %r11	
+	xorq %r11, %r11
 	subq %r10, %r11
+	jle pos
 	rrmovq %r11, %r10
-add:
+pos:
 	addq %r10, %rax
 	addq %r8, %rdi
 	subq %r9, %rsi

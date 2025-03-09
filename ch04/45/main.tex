@@ -1,0 +1,17 @@
+\documentclass{article}
+\usepackage{enumitem}
+
+\begin{document}
+\begin{enumerate}[label=\textbf{\Alph*.}]
+	\item In light of analysis done in Practice Problem 4.7, does this code
+	sequence correctly describe te behavior of the instruction \texttt{pushq \%rsp}? Explain. \\
+	No, \texttt{pushq \%rsp} will store the value in \%rsp before decrement. But this code will
+	store the value in \%rsp after decrement.
+	\item How could you rewrite the code sequence so that it correctly describes both
+	the cases where REG is \%rsp as well as any other register? \\
+	\texttt{
+	movq REG, -8(\%rsp) \\
+	subq \$8, \%rsp \\
+	}
+\end{enumerate}
+\end{document}

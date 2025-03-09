@@ -1,0 +1,16 @@
+\documentclass{article}
+\usepackage{enumitem}
+
+\begin{document}
+\begin{enumerate}[label=\textbf{\Alph*.}]
+	\item In light of analysis done in Practice Proble 4.8, does this code sequence
+	correctly describe the behavior of the instruction \texttt{popq \%rsp}? Explain.
+	No, \texttt{popq \%rsp} will set the \%rsp register with the value at the top of the stack.
+	\item How could you rewrite the code sequence so that it correctly describes both the
+	cases where REG is \%rsp as well as other register? \\
+	\texttt{
+		addq \$8, \%rsp \\
+		movq 8(\%rsp), REG \\
+	}
+\end{enumerate}
+\end{document}

@@ -7,7 +7,6 @@ absSum:
 loop:
 	mrmovq (%rdi), %r10
 	xorq %r11, %r11
-	subq %r9, %rsi
 	subq %r10, %r11
 	cmovg %r11, %r10
 	addq %r10, %rax
