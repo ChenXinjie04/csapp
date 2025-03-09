@@ -1,31 +1,58 @@
+.pos 0
+	irmovq stack, %rsp  	# Set up stack pointer
+	call main		# Execute main program
+	halt		
+
+.align 8
+data:
+  .quad 0x0000000000000004
+  .quad 0x0000000000000003
+  .quad 0x0000000000000002
+data_end:
+  .quad 0x0000000000000001
+
+main:
+  irmovq data,%rdi
+	irmovq $4,%rsi
+	call bubble
+	ret
+
 bubble:
-	movq %rdi, %rcx
-	subq $1, %rsi
+	irmovq $1, %r9
+	irmovq $8, %r8
+	rrmovq %rdi, %rcx
 	jmp test1
 loop1:
-	addq $8, %rcx
+	addq %r8, %rcx
 test1:
-	subq $1, %rsi
+	subq %r9, %rsi
 	jg loop1
 	rrmovq %rcx, %rsi
 	jmp test2
 innerloop:
-	addq $8, %rax
+	addq %r8, %rax
 loop2:
-	subq %rsi, %rax
+	rrmovq %rax, %r10
+	subq %rsi, %r10
 	jge outerloop
 	mrmovq 8(%rax), %rdx
 	mrmovq (%rax), %rcx
+	rrmovq %rdx, %r10
+	subq %rcx, %r10
 	jge innerloop
-	movq %rcx, 8(%rax)
-	movq %rdx, (%rax)
+	rmmovq %rcx, 8(%rax)
+	rmmovq %rdx, (%rax)
 	jmp innerloop
 outerloop:
-	subq $8, %rsi
+	subq %r8, %rsi
 test2:
-	cmp %rsi, %rdi
+	rrmovq %rdi, %r10
+	subq %rsi, %r10
 	jge done
 	rrmovq %rdi, %rax
 	jmp loop2
 done:
 	ret
+
+.pos 0x200
+stack:
