@@ -13,7 +13,7 @@ array:
 main:
 	irmovq array, %r13
 
-	irmovq $1, %rdi
+	irmovq $0, %rdi
 	call switchv
 	rmmovq %rax, (%r13)
 
@@ -35,10 +35,10 @@ switchv:
 	irmovq $5, %r11
 	rrmovq %rdi, %r12
 	subq %r11, %r12 # idx : 5
-	jg .L2
+	jg .L7
 	rrmovq %rdi, %r12 # idx : 0
 	subq %r10, %r12
-	jl .L2
+	jl .L7
 	irmovq $1, %r11
 	irmovq .L4, %r12
 lea:
@@ -48,27 +48,27 @@ lea:
 	subq %r11, %rdi
 	jmp lea
 addr:
-	mrmovq %r12, %r9
+	mrmovq (%r12), %r9
 	pushq %r9
 	ret
 .L3:
 	irmovq $0xaaa, %rax
 	jmp .L2
-.L4:
+.L5:
 	irmovq $0xbbb, %rax
 	jmp .L2
-.L5:
+.L6:
 	irmovq $0xccc, %rax
 	jmp .L2
-.L6:
+.L7:
 	irmovq $0xddd, %rax
 .L2:
 	ret
 
 .pos 0x200
 stack:
-	.section .rodata
-	.align 8
+
+.align 8
 .L4:
 	.quad .L3	# 0
 	.quad .L7	#default
