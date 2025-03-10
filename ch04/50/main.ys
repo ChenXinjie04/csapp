@@ -1,0 +1,78 @@
+.pos 0
+	irmovq stack, %rsp
+	call main
+	halt
+
+.align 8
+array:
+	.quad 0x0000000000000000
+	.quad 0x0000000000000000
+	.quad 0x0000000000000000
+	.quad 0x0000000000000000
+
+main:
+	irmovq array, %r13
+
+	irmovq $1, %rdi
+	call switchv
+	rmmovq %rax, (%r13)
+
+	irmovq $2, %rdi
+	call switchv
+	rmmovq %rax, 8(%r13)
+
+	irmovq $3, %rdi
+	call switchv
+	rmmovq %rax, 16(%r13)
+
+	irmovq $-1, %rdi
+	call switchv
+	rmmovq %rax, 24(%r13)
+
+switchv:
+	irmovq $8, %r8
+	irmovq $0, %r10
+	irmovq $5, %r11
+	rrmovq %rdi, %r12
+	subq %r11, %r12 # idx : 5
+	jg .L2
+	rrmovq %rdi, %r12 # idx : 0
+	subq %r10, %r12
+	jl .L2
+	irmovq $1, %r11
+	irmovq .L4, %r12
+lea:
+	subq %r10, %rdi
+	je addr
+	addq %r8, %r12 # load next entry
+	subq %r11, %rdi
+	jmp lea
+addr:
+	mrmovq %r12, %r9
+	pushq %r9
+	ret
+.L3:
+	irmovq $0xaaa, %rax
+	jmp .L2
+.L4:
+	irmovq $0xbbb, %rax
+	jmp .L2
+.L5:
+	irmovq $0xccc, %rax
+	jmp .L2
+.L6:
+	irmovq $0xddd, %rax
+.L2:
+	ret
+
+.pos 0x200
+stack:
+	.section .rodata
+	.align 8
+.L4:
+	.quad .L3	# 0
+	.quad .L7	#default
+	.quad .L5 # 1
+	.quad .L6 # 2
+	.quad .L7 # default
+	.quad .L5 # 1
