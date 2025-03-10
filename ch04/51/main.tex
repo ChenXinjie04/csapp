@@ -1,0 +1,18 @@
+\documentclass{article}
+
+\begin{document}
+\begin{tabular}{l l}
+\hline
+Stage & iaddq rA, rB \\
+\hline
+Fetch & $icode:fun \leftarrow M_1[PC]$ \\
+& $rA:rB \leftarrow M_1[PC+1]$ \\
+& $valC \leftarrow M_8[PC+2]$ \\
+& $valP \leftarrow PC + 10$ \\
+Decode & $valA \leftarrow R[rA]$ \\
+Execute & $valE \leftarrow valC + valA$ \\
+Memory & \\
+Write back & $R[rA] \leftarrow valE$ \\
+PC update & $PC \leftarrow valP$
+\end{tabular}
+\end{document}
