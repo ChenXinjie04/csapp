@@ -2,12 +2,12 @@
                             | # Test for copying block of size 4;
                             | #######################################################################
 0x000:                      | 	.pos 0
-0x000: 30f4f002000000000000 | main:	irmovq Stack, %rsp  	# Set up stack pointer
+0x000: 30f40003000000000000 | main:	irmovq Stack, %rsp  	# Set up stack pointer
                             | 
                             | 	# Set up arguments for copy function and then invoke it
 0x00a: 30f20400000000000000 | 	irmovq $4, %rdx		# src and dst have 4 elements
-0x014: 30f64802000000000000 | 	irmovq dest, %rsi	# dst array
-0x01e: 30f71002000000000000 | 	irmovq src, %rdi	# src array
+0x014: 30f65802000000000000 | 	irmovq dest, %rsi	# dst array
+0x01e: 30f72002000000000000 | 	irmovq src, %rdi	# src array
 0x028: 803200000000000000   | 	call ncopy		 
 0x031: 00                   | 	halt			# should halt with num nonzeros in %rax
 0x032:                      | StartFun:
@@ -87,7 +87,7 @@
 0x199: c0f2f8ffffffffffffff | 	iaddq $-8, %rdx # len -= 8
 0x1a3: 753d00000000000000   | 	jge Loop		# if so, goto Loop:
 0x1ac: c0f20800000000000000 | 	iaddq $8, %rdx
-0x1b6: 730f02000000000000   | 	je Done
+0x1b6: 731802000000000000   | 	je Done
                             | 
 0x1bf:                      | remain:
 0x1bf: 50a70000000000000000 | 	mrmovq (%rdi), %r10
@@ -100,43 +100,43 @@
 0x1f2: c0f60800000000000000 | 	iaddq $8, %rsi
 0x1fc: c0f2ffffffffffffffff | 	iaddq $-1, %rdx
 0x206: 76bf01000000000000   | 	jg remain
+0x20f: 701802000000000000   | 	jmp Done
+                            | 
                             | ##################################################################
                             | # Do not modify the following section of code
                             | # Function epilogue.
-0x20f:                      | Done:
-0x20f: 90                   | 	ret
+0x218:                      | Done:
+0x218: 90                   | 	ret
                             | ##################################################################
                             | # Keep the following label at the end of your function
-0x210:                      | End:
+0x219:                      | End:
                             | #/* $end ncopy-ys */
-0x210:                      | EndFun:
+0x219:                      | EndFun:
                             | 
                             | ###############################
                             | # Source and destination blocks 
                             | ###############################
-0x210:                      | 	.align 8
-0x210:                      | src:
-0x210: ffffffffffffffff     | 	.quad -1
-0x218: feffffffffffffff     | 	.quad -2
-0x220: 0300000000000000     | 	.quad 3
-0x228: 0400000000000000     | 	.quad 4
-0x230: fadebc0000000000     | 	.quad 0xbcdefa # This shouldn't get moved
+0x220:                      | 	.align 8
+0x220:                      | src:
+0x220: ffffffffffffffff     | 	.quad -1
+0x228: 0200000000000000     | 	.quad 2
+0x230: 0300000000000000     | 	.quad 3
+0x238: fcffffffffffffff     | 	.quad -4
+0x240: fadebc0000000000     | 	.quad 0xbcdefa # This shouldn't get moved
                             | 
-0x240:                      | 	.align 16
-0x240:                      | Predest:
-0x240: fadebc0000000000     | 	.quad 0xbcdefa
-0x248:                      | dest:
-0x248: abefcd0000000000     | 	.quad 0xcdefab
-0x250: abefcd0000000000     | 	.quad 0xcdefab
+0x250:                      | 	.align 16
+0x250:                      | Predest:
+0x250: fadebc0000000000     | 	.quad 0xbcdefa
+0x258:                      | dest:
 0x258: abefcd0000000000     | 	.quad 0xcdefab
 0x260: abefcd0000000000     | 	.quad 0xcdefab
-0x268:                      | Postdest:
-0x268: bcfade0000000000     | 	.quad 0xdefabc
+0x268: abefcd0000000000     | 	.quad 0xcdefab
+0x270: abefcd0000000000     | 	.quad 0xcdefab
+0x278:                      | Postdest:
+0x278: bcfade0000000000     | 	.quad 0xdefabc
                             | 
-0x270:                      | .align 8
+0x280:                      | .align 8
                             | # Run time stack
-0x270: 0000000000000000     | 	.quad 0
-0x278: 0000000000000000     | 	.quad 0
 0x280: 0000000000000000     | 	.quad 0
 0x288: 0000000000000000     | 	.quad 0
 0x290: 0000000000000000     | 	.quad 0
@@ -151,5 +151,7 @@
 0x2d8: 0000000000000000     | 	.quad 0
 0x2e0: 0000000000000000     | 	.quad 0
 0x2e8: 0000000000000000     | 	.quad 0
+0x2f0: 0000000000000000     | 	.quad 0
+0x2f8: 0000000000000000     | 	.quad 0
                             | 
-0x2f0:                      | Stack:
+0x300:                      | Stack:

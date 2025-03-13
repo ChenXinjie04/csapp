@@ -50,6 +50,10 @@ wordsig RNONE    'REG_NONE'   	     # Special value indicating "no register"
 
 ##### ALU Functions referenced explicitly ##########################
 wordsig ALUADD	'A_ADD'		     # ALU should add its arguments
+## BNT: For modified branch prediction, need to distinguish
+## conditional vs. unconditional branches
+##### Jump conditions referenced explicitly
+wordsig UNCOND 'C_YES'       	     # Unconditional transfer
 
 ##### Possible instruction status values                       #####
 wordsig SBUB	'STAT_BUB'	# Bubble in stage
