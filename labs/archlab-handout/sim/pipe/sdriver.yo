@@ -118,9 +118,9 @@
                             | ###############################
 0x220:                      | 	.align 8
 0x220:                      | src:
-0x220: ffffffffffffffff     | 	.quad -1
+0x220: 0100000000000000     | 	.quad 1
 0x228: 0200000000000000     | 	.quad 2
-0x230: 0300000000000000     | 	.quad 3
+0x230: fdffffffffffffff     | 	.quad -3
 0x238: fcffffffffffffff     | 	.quad -4
 0x240: fadebc0000000000     | 	.quad 0xbcdefa # This shouldn't get moved
                             | 
