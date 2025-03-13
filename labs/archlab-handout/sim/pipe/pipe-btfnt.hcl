@@ -139,8 +139,8 @@ wordsig W_valM  'mem_wb_curr->valm'	# Memory M value
 ## What address should instruction be fetched at
 word f_pc = [
 	# Mispredicted branch.  Fetch at incremented PC
-	M_icode == IJXX && M_valE < M_valA && !M_Cnd : M_valA;
-	M_icode == IJXX && M_valE > M_valC && M_Cnd : M_valE;
+	M_icode == IJXX && M_ifun != UNCOND && M_valE < M_valA && !M_Cnd : M_valA;
+	M_icode == IJXX && M_ifun != UNCOND && M_valE > M_valA && M_Cnd : M_valE;
 	# Completion of RET instruction
 	W_icode == IRET : W_valM;
 	# Default: Use predicted value of PC
@@ -184,8 +184,8 @@ bool need_valC =
 # Predict next value of PC
 word f_predPC = [
 	# BBTFNT: This is where you'll change the branch prediction rule
-	f_icode == IJXX && f_ifun == UNCOND && valC < valP : valC;
-	f_icode == IJXX && f_ifun == UNCOND && valC > valP : valP;
+	f_icode == IJXX && f_ifun != UNCOND && f_valC < f_valP : f_valC;
+	f_icode == IJXX && f_ifun != UNCOND && f_valC > f_valP : f_valP;
 	f_icode in { IJXX, ICALL } : f_valC;
 	1 : f_valP;
 ];
