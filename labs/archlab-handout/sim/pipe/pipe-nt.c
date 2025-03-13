@@ -9,7 +9,7 @@ int main(int argc, char *argv[]){return sim_main(argc,argv);}
 long long gen_f_pc()
 {
     return (((((ex_mem_curr->icode) == (I_JMP)) & ((ex_mem_curr->ifun) != 
-            (C_YES))) & (ex_mem_curr->takebranch)) ? (ex_mem_curr->vale) : 
+            (C_YES))) & (ex_mem_curr->takebranch)) ? (ex_mem_curr->vala) : 
       ((mem_wb_curr->icode) == (I_RET)) ? (mem_wb_curr->valm) : 
       (pc_curr->pc));
 }
@@ -59,9 +59,10 @@ long long gen_need_valC()
 
 long long gen_f_predPC()
 {
-    return ((((if_id_next->icode) == (I_CALL)) | (((if_id_next->icode) == 
-            (I_JMP)) & ((if_id_next->ifun) == (C_YES)))) ? 
-      (if_id_next->valc) : (if_id_next->valp));
+    return ((((if_id_next->icode) == (I_JMP)) & ((if_id_next->ifun) != 
+          (C_YES))) ? (if_id_next->valp) : ((if_id_next->icode) == (I_JMP)
+         || (if_id_next->icode) == (I_CALL)) ? (if_id_next->valc) : 
+      (if_id_next->valp));
 }
 
 long long gen_d_srcA()
@@ -124,10 +125,9 @@ long long gen_aluA()
     return (((id_ex_curr->icode) == (I_RRMOVQ) || (id_ex_curr->icode) == 
         (I_ALU)) ? (id_ex_curr->vala) : ((id_ex_curr->icode) == (I_IRMOVQ)
          || (id_ex_curr->icode) == (I_RMMOVQ) || (id_ex_curr->icode) == 
-        (I_MRMOVQ) || (id_ex_curr->icode) == (I_JMP)) ? (id_ex_curr->valc)
-       : ((id_ex_curr->icode) == (I_CALL) || (id_ex_curr->icode) == 
-        (I_PUSHQ)) ? -8 : ((id_ex_curr->icode) == (I_RET) || 
-        (id_ex_curr->icode) == (I_POPQ)) ? 8 : 0);
+        (I_MRMOVQ)) ? (id_ex_curr->valc) : ((id_ex_curr->icode) == (I_CALL)
+         || (id_ex_curr->icode) == (I_PUSHQ)) ? -8 : ((id_ex_curr->icode) == 
+        (I_RET) || (id_ex_curr->icode) == (I_POPQ)) ? 8 : 0);
 }
 
 long long gen_aluB()
@@ -137,8 +137,7 @@ long long gen_aluB()
          == (I_CALL) || (id_ex_curr->icode) == (I_PUSHQ) || 
         (id_ex_curr->icode) == (I_RET) || (id_ex_curr->icode) == (I_POPQ))
        ? (id_ex_curr->valb) : ((id_ex_curr->icode) == (I_RRMOVQ) || 
-        (id_ex_curr->icode) == (I_IRMOVQ) || (id_ex_curr->icode) == (I_JMP)
-        ) ? 0 : 0);
+        (id_ex_curr->icode) == (I_IRMOVQ)) ? 0 : 0);
 }
 
 long long gen_alufun()
@@ -158,7 +157,8 @@ long long gen_set_cc()
 
 long long gen_e_valA()
 {
-    return (id_ex_curr->vala);
+    return (((id_ex_curr->icode) == (I_JMP)) ? (id_ex_curr->valc) : 
+      (id_ex_curr->vala));
 }
 
 long long gen_e_dstE()
