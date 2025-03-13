@@ -29,23 +29,77 @@ ncopy:
 ##################################################################
 # You can modify this portion
 	# Loop header
-	xorq %rax,%rax		# count = 0;
-	andq %rdx,%rdx		# len <= 0?
-	jle Done		# if so, goto Done:
+	andq %rdx, %rdx # len == 0
+	jmp Npos
 
-Loop:	mrmovq (%rdi), %r10	# read val from src...
-	rmmovq %r10, (%rsi)	# ...and store it to dst
+Loop:
+	mrmovq (%rdi), %r10	# read val from src...
 	andq %r10, %r10		# val <= 0?
-	jle Npos		# if so, goto Npos:
-	irmovq $1, %r10
-	addq %r10, %rax		# count++
-Npos:	irmovq $1, %r10
-	subq %r10, %rdx		# len--
-	irmovq $8, %r10
-	addq %r10, %rdi		# src++
-	addq %r10, %rsi		# dst++
-	andq %rdx,%rdx		# len > 0?
-	jg Loop			# if so, goto Loop:
+	rmmovq %r10, (%rsi)	# ...and store it to dst
+	jle secondCopy		# if so, goto Npos:
+	iaddq $1, %rax # count ++
+secondCopy:
+	mrmovq 8(%rdi), %r10
+	andq %r10, %r10
+	rmmovq %r10, 8(%rsi)
+	jle thirdCopy
+	iaddq $1, %rax
+thirdCopy:
+	mrmovq 16(%rdi), %r10
+	andq %r10, %r10
+	rmmovq %r10, 16(%rsi)
+	jle forthCopy
+	iaddq $1, %rax
+forthCopy:
+	mrmovq 24(%rdi), %r10
+	andq %r10, %r10
+	rmmovq %r10, 24(%rsi)
+	jle fifth
+	iaddq $1, %rax
+fifth:
+	mrmovq 32(%rdi), %r10
+	andq %r10, %r10
+	rmmovq %r10, 32(%rsi)
+	jle sixth
+	iaddq $1, %rax
+sixth:
+	mrmovq 40(%rdi), %r10
+	andq %r10, %r10
+	rmmovq %r10, 40(%rsi)
+	jle seventh
+	iaddq $1, %rax
+seventh:
+	mrmovq 48(%rdi), %r10
+	andq %r10, %r10
+	rmmovq %r10, 48(%rsi)
+	jle eighth
+	iaddq $1, %rax
+eighth:
+	mrmovq 56(%rdi), %r10
+	andq %r10, %r10
+	rmmovq %r10, 56(%rsi)
+	jle step
+	iaddq $1, %rax
+step:
+	iaddq $64, %rdi
+	iaddq $64, %rsi
+Npos: 
+	iaddq $-8, %rdx # len -= 8
+	jge Loop		# if so, goto Loop:
+	iaddq $8, %rdx
+	je Done
+
+remain:
+	mrmovq (%rdi), %r10
+	andq %r10, %r10
+	rmmovq %r10, (%rsi)
+	jle test
+	iaddq $1, %rax
+test:
+	iaddq $8, %rdi
+	iaddq $8, %rsi
+	iaddq $-1, %rdx
+	jg remain
 ##################################################################
 # Do not modify the following section of code
 # Function epilogue.
