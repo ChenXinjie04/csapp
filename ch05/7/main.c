@@ -22,7 +22,7 @@ void combine5(vec_ptr v, data_t *dest) {
 	long limit = length - 4;
 	data_t *data = get_vec_start(v);
 	long acc = IDENT;
-	
+
 	/* Combine 2 elements at a time */
 	for (i = 0; i < limit; ++i) {
 		acc = (acc OP data[i]) OP data[i+1];
