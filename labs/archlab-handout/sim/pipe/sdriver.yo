@@ -193,9 +193,9 @@
 0x400:                      | 	.align 8
 0x400:                      | src:
 0x400: 0100000000000000     | 	.quad 1
-0x408: feffffffffffffff     | 	.quad -2
+0x408: 0200000000000000     | 	.quad 2
 0x410: fdffffffffffffff     | 	.quad -3
-0x418: 0400000000000000     | 	.quad 4
+0x418: fcffffffffffffff     | 	.quad -4
 0x420: fadebc0000000000     | 	.quad 0xbcdefa # This shouldn't get moved
                             | 
 0x430:                      | 	.align 16
