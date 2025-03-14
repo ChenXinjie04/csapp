@@ -29,79 +29,153 @@ ncopy:
 ##################################################################
 # You can modify this portion
 	# Loop header
-	andq %rdx, %rdx # len == 0
-	jmp Npos
+	iaddq $-9, %rdx
+	jl handle_remainder
 
 Loop:
-	mrmovq (%rdi), %r10	# read val from src...
-	rmmovq %r10, (%rsi)	# ...and store it to dst
-	andq %r10, %r10		# val <= 0?
-	jle secondCopy		# if so, goto Npos:
-	iaddq $1, %rax # count ++
-secondCopy:
-	mrmovq 8(%rdi), %r10
-	rmmovq %r10, 8(%rsi)
-	andq %r10, %r10
-	jle thirdCopy
+	mrmovq (%rdi), %r8	# read val from src...
+	mrmovq 8(%rdi), %r9	# read val from src...
+	mrmovq 16(%rdi), %r10	# read val from src...
+	mrmovq 24(%rdi), %r11	# read val from src...
+
+	mrmovq 32(%rdi), %r12	# read val from src...
+	mrmovq 40(%rdi), %r13	# read val from src...
+	mrmovq 48(%rdi), %r14	# read val from src...
+	mrmovq 56(%rdi), %rcx
+
+	mrmovq 64(%rdi), %rbx
+
+	andq %r8, %r8
+	rmmovq %r8, (%rsi)
+	jle judgeAndWrite1
 	iaddq $1, %rax
-thirdCopy:
-	mrmovq 16(%rdi), %r10
+judgeAndWrite1:
+	andq %r9, %r9
+	rmmovq %r9, 8(%rsi)
+	jle judgeAndWrite2
+	iaddq $1, %rax
+judgeAndWrite2:
+	andq %r10, %r10
 	rmmovq %r10, 16(%rsi)
-	andq %r10, %r10
-	jle forthCopy
+	jle judgeAndWrite3
 	iaddq $1, %rax
-forthCopy:
-	mrmovq 24(%rdi), %r10
-	rmmovq %r10, 24(%rsi)
-	andq %r10, %r10
-	jle fifth
+judgeAndWrite3:
+	andq %r11, %r11
+	rmmovq %r11, 24(%rsi)
+	jle judgeAndWrite4
 	iaddq $1, %rax
-fifth:
-	mrmovq 32(%rdi), %r10
-	rmmovq %r10, 32(%rsi)
-	andq %r10, %r10
-	jle sixth
+judgeAndWrite4:
+	andq %r12, %r12
+	rmmovq %r12, 32(%rsi)
+	jle judgeAndWrite5
 	iaddq $1, %rax
-sixth:
-	mrmovq 40(%rdi), %r10
-	rmmovq %r10, 40(%rsi)
-	andq %r10, %r10
-	jle seventh
+judgeAndWrite5:
+	andq %r13, %r13
+	rmmovq %r13, 40(%rsi)
+	jle judgeAndWrite6
 	iaddq $1, %rax
-seventh:
-	mrmovq 48(%rdi), %r10
-	rmmovq %r10, 48(%rsi)
-	andq %r10, %r10
-	jle eighth
+judgeAndWrite6:
+	andq %r14, %r14
+	rmmovq %r14, 48(%rsi)
+	jle judgeAndWrite7
 	iaddq $1, %rax
-eighth:
-	mrmovq 56(%rdi), %r10
-	rmmovq %r10, 56(%rsi)
-	andq %r10, %r10
-	jle step
+judgeAndWrite7:
+	andq %rcx, %rcx
+	rmmovq %rcx, 56(%rsi)
+	jle judgeAndWrite8
 	iaddq $1, %rax
-step:
-	iaddq $64, %rdi
-	iaddq $64, %rsi
-Npos: 
-	iaddq $-8, %rdx # len -= 8
-	jge Loop		# if so, goto Loop:
-	iaddq $8, %rdx
-	je Done
+judgeAndWrite8:
+	andq %rbx, %rbx
+	rmmovq %rbx, 64(%rsi)
+	jle update
+	iaddq $1, %rax
 
-remain:
-	mrmovq (%rdi), %r10
-	rmmovq %r10, (%rsi)
-	andq %r10, %r10
-	jle test
-	iaddq $1, %rax
-test:
-	iaddq $8, %rdi
-	iaddq $8, %rsi
+update:
+	iaddq $72, %rdi
+	iaddq $72, %rsi
+	iaddq $-9, %rdx
+	jge Loop
+
+handle_remainder:
+	iaddq $6, %rdx
+	jl handle_remainder_0_to_2
+handle_remainder_3_to_8:
+	iaddq $-3, %rdx
+	jl handle_remainder_3_to_5
+
+handle_remainder_6_to_8:
 	iaddq $-1, %rdx
-	jg remain
-	jmp Done
+	mrmovq 40(%rdi), %rbx
+	jl handle_remainder_6
+	mrmovq 48(%rdi), %rbx
+	je handle_remainder_7
+	mrmovq 56(%rdi), %rbx
+	jg handle_remainder_8
 
+handle_remainder_3_to_5:
+	iaddq $2, %rdx
+	mrmovq 16(%rdi), %rbx
+	jl handle_remainder_3
+	mrmovq 24(%rdi), %rbx
+	je handle_remainder_4
+	mrmovq 32(%rdi), %rbx
+	jg handle_remainder_5
+handle_remainder_0_to_2:
+	iaddq $2, %rdx
+	mrmovq (%rdi), %rbx
+	je handle_remainder_1
+	mrmovq 8(%rdi), %rbx
+	jg handle_remainder_2
+	ret
+
+handle_remainder_8:
+	andq %rbx, %rbx
+	rmmovq %rbx, 56(%rsi)
+	mrmovq 48(%rdi), %rbx
+	jl handle_remainder_7
+	iaddq $1, %rax
+handle_remainder_7:
+	andq %rbx, %rbx
+	rmmovq %rbx, 48(%rsi)
+	mrmovq 40(%rdi), %rbx
+	jl handle_remainder_6
+	iaddq $1, %rax
+handle_remainder_6:
+	andq %rbx, %rbx
+	rmmovq %rbx, 40(%rsi)
+	mrmovq 32(%rdi), %rbx
+	jl handle_remainder_5
+	iaddq $1, %rax
+handle_remainder_5:
+	andq %rbx, %rbx
+	rmmovq %rbx, 32(%rsi)
+	mrmovq 24(%rdi), %rbx
+	jl handle_remainder_4
+	iaddq $1, %rax
+handle_remainder_4:
+	andq %rbx, %rbx
+	rmmovq %rbx, 24(%rsi)
+	mrmovq 16(%rdi), %rbx
+	jl handle_remainder_3
+	iaddq $1, %rax
+handle_remainder_3:
+	andq %rbx, %rbx
+	rmmovq %rbx, 16(%rsi)
+	mrmovq 8(%rdi), %rbx
+	jl handle_remainder_2
+	iaddq $1, %rax
+handle_remainder_2:
+	andq %rbx, %rbx
+	rmmovq %rbx, 8(%rsi)
+	mrmovq (%rdi), %rbx
+	jl handle_remainder_1
+	iaddq $1, %rax
+handle_remainder_1:
+	andq %rbx, %rbx
+	rmmovq %rbx, (%rsi)
+	jl Done
+	iaddq $1, %rax
+	
 ##################################################################
 # Do not modify the following section of code
 # Function epilogue.
@@ -120,67 +194,67 @@ EndFun:
 src:
 	.quad 1
 	.quad 2
-	.quad -3
-	.quad 4
-	.quad -5
+	.quad 3
+	.quad -4
+	.quad 5
 	.quad -6
 	.quad -7
-	.quad 8
+	.quad -8
 	.quad 9
-	.quad 10
+	.quad -10
 	.quad 11
 	.quad -12
-	.quad -13
-	.quad 14
+	.quad 13
+	.quad -14
 	.quad -15
 	.quad -16
-	.quad -17
-	.quad -18
+	.quad 17
+	.quad 18
 	.quad -19
-	.quad -20
-	.quad 21
-	.quad -22
-	.quad -23
+	.quad 20
+	.quad -21
+	.quad 22
+	.quad 23
 	.quad -24
 	.quad -25
 	.quad -26
-	.quad 27
-	.quad -28
+	.quad -27
+	.quad 28
 	.quad 29
-	.quad -30
-	.quad -31
-	.quad -32
+	.quad 30
+	.quad 31
+	.quad 32
 	.quad -33
 	.quad 34
 	.quad -35
 	.quad 36
 	.quad 37
 	.quad 38
-	.quad 39
+	.quad -39
 	.quad -40
-	.quad -41
-	.quad 42
-	.quad -43
+	.quad 41
+	.quad -42
+	.quad 43
 	.quad 44
-	.quad -45
-	.quad 46
+	.quad 45
+	.quad -46
 	.quad -47
-	.quad 48
+	.quad -48
 	.quad 49
 	.quad 50
-	.quad 51
-	.quad -52
-	.quad -53
-	.quad -54
-	.quad 55
-	.quad -56
-	.quad 57
-	.quad 58
-	.quad 59
-	.quad 60
-	.quad 61
-	.quad 62
-	.quad 63
+	.quad -51
+	.quad 52
+	.quad 53
+	.quad 54
+	.quad -55
+	.quad 56
+	.quad -57
+	.quad -58
+	.quad -59
+	.quad -60
+	.quad -61
+	.quad -62
+	.quad -63
 	.quad 0xbcdefa # This shouldn't get moved
 
 	.align 16
