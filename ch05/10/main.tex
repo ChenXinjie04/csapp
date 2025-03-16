@@ -1,0 +1,17 @@
+\documentclass{article}
+\usepackage{enumitem}
+
+\begin{document}
+\begin{enumerate}[label=\textbf{\Alph*.}]
+	\item What would be the effect of the call \texttt{copy\_array(a+1, a, 999)?} \\
+	It will set each element $a[i]$ to $i+1$, for $0 \leq i \leq 998$. \\
+	\item What would be the effect of the call \texttt{copy\_array(a, a+1, 999)?} \\
+	It will set each element $a[i]$ to 0, for $ 0 \leq i \leq 999$. \\
+	\item . \\
+	Part B has lower performance because it will load the value we stored to 
+	the memory in the previous iteration, which causes a write\slash read dependency. \\
+	\item What performance would you expect for the call \texttt{copy\_array(a, a, 999)?}
+	It would have a CPE of 1.0, since there are no dependencies between stores and
+	subsequent loads. \\
+\end{enumerate}
+\end{document}
