@@ -33,30 +33,3 @@ void *memset(void *s, int c, size_t n) {
 
 	return schar;
 }
-
-int main() {
-	unsigned char *src, *dst;
-	src = malloc(100 * sizeof(unsigned char));
-
-	printf("The end of src is: %p\n", src + 100);
-	for (int i = 0; i < 100; i++) {
-		src[i] = i;
-		printf("%x ", src[i]);
-		if (i % 10 == 9) {
-			printf("\n");
-		}
-	}
-	printf("\n");
-	dst = memset(src, 1, 100);
-	printf("After call memset the value in dst is: %p\n", dst);
-	printf("The value in the chunck is as follows:\n");
-	for (int i = 0; i < 100; i++) {
-		printf("%x ", src[i]);
-		if (i % 10 == 9) {
-			printf("\n");
-		}
-	}
-	printf("\n");
-
-	return EXIT_SUCCESS;
-}
