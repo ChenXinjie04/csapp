@@ -1,0 +1,23 @@
+\documentclass{article}
+\usepackage{enumitem}
+\parindent = 0pt
+
+\begin{document}
+$T_{avg\,rotation} = \frac{1}{2} \times \frac{1}{10,000RPM} \times \frac{60secs}{1min} \times
+\frac{1,000ms}{1sec} = 3ms$ \\
+\\
+$T_{avg\,transfer} = \frac{1}{10,000RPM} \times \frac{1track}{1,000sectors} \times
+\frac{60secs}{1min} \times \frac{1,000ms}{1sec} = 0.006$ \\
+\\
+$T_{access} = T_{avg\,seek} + T_{avg\,rotation} + T_{avg\,transfer} \\
+= 5ms + 3ms + 0.006ms = 8.006ms$ \\
+A 1MB file store in 512 bytes blocks need 2,048 blocks. \\
+\begin{enumerate}[label=\textbf{\Alph*.}]
+	\item . \\
+	$T_{best\,case} = T_{avg\,seek} + T_{avg\,rotation} + 2048 \times T_{avg,transfer} \\
+	= 5ms + 3ms + 2048 \times 0.006ms = 5ms + 3ms + 12.288ms = 20.288ms$ \\
+	\item . \\
+	$T_{random\,access} = 2048 \times (T_{avg\,seek} + T_{avg\,rotation} + T_{avg\,transfer}) \\
+	= 2048 \times (5ms + 3ms + 0.006ms) = 2048 \times 8.006ms = 16,396.288ms$ \\
+\end{enumerate}
+\end{document}
