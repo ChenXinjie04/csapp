@@ -1,0 +1,19 @@
+\documentclass{article}
+\parindent = 0pt
+
+\begin{document}
+The file consists of $\frac{2MB}{512bytes} = 4000$ blocks. \\
+$T_{avg\,rotation} = \frac{1}{2} \times \frac{1}{15,000RPM} \times
+\frac{60secs}{1min} \times \frac{1,000ms}{1sec} = 2ms$ \\
+\\
+$T_{avg\,transfer} = \frac{1}{15,000RPM} \times \frac{1track}{1,000sectors} \times 
+\frac{60secs}{1min} \times \frac{1,000ms}{1sec} = 0.004ms$ \\
+\\
+Best case: \\
+$T_{access} = T_{seek} + T_{avg\,rotation} + 4000 \times T_{avg\,transfer} = 
+4ms + 2ms + 4000 \times 0.004ms = 22ms$ \\
+\\
+Random case: \\
+$T_{access} = 4000 \times (T_{seek} + T_{avg\,rotation} + T_{avg\,transfer}) =
+4000 \times (4ms + 2ms + 0.004ms) = 4000 \times 6.004ms = 24.016s$ \\
+\end{document}

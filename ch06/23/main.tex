@@ -1,0 +1,13 @@
+\documentclass{article}
+\parindent = 0pt
+
+\begin{document}
+$T_{avg\,rotation} = \frac{1}{2} \times \frac{1}{15,000RPM} \times 
+\frac{60secs}{1min} \times \frac{1,000ms}{1sec} = 2ms$ \\
+\\
+$T_{avg\,transfer} = \frac{1}{15,000RPM} \times \frac{1track}{800sectors} \times
+\frac{60secs}{1min} \times \frac{1,000ms}{1sec} = 0.005ms$ \\
+\\
+$T_{access} = T_{seek} + T_{avg\,rotation} + T_{avg\,transfer} = 
+4ms + 2ms + 0.005ms = 6.005ms$
+\end{document}
