@@ -1,0 +1,20 @@
+\documentclass{article}
+\usepackage{enumitem}
+
+\begin{document}
+\begin{enumerate}[label=\textbf{\Alph*.}]
+	\item 
+\begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|}
+	\hline
+	CT & CT & CT & CT & CT & CT & CT & CT & CI & CI & CO & CO \\
+	\hline
+\end{tabular}
+\item
+	\begin{tabular}{c c c c}
+		Operation & Address & Hit? & Read value(or unknown) \\
+		Read & 0x834 & N & unknown \\
+		Write & 0x836 & Y & unknown \\
+		Read & 0xFFD & Y & C0
+	\end{tabular}
+\end{enumerate}
+\end{document}
