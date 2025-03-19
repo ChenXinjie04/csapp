@@ -1,0 +1,15 @@
+\documentclass{article}
+
+\begin{document}
+\begin{tabular}{c c c c c}
+Symbol & swap.o .symtab entry? & Symbol type & Module where defined & Section \\
+\hline
+buf & yes & extern & m.o & .data \\
+bufp0 & yes & global & swap.o & .data \\
+bufp1 & no & local & swap.o & .bss \\
+swap & yes & global & swap.o & .text \\
+temp & no & --- & --- & --- \\
+incr & yes & local & swap.o & .text \\
+count & yes & local & swap.o & .bss \\	
+\end{tabular}
+\end{document}
