@@ -1,96 +1,71 @@
-	.arch armv8.4-a+fp16+sb+ssbs
-	.build_version macos,  15, 0
+	.file	"test.c"
 	.text
-	.align	2
-	.globl __Z5mergePlS_S_l
-__Z5mergePlS_S_l:
-LFB0:
-	cmp	x3, 0
-	ble	L1
-	mov	x6, 1
-	mov	x5, 0
-	mov	x4, 0
-	sub	x10, x2, #8
-	b	L5
-L3:
-	add	x5, x5, 1
-	mov	x7, x6
-	str	x8, [x10, x6, lsl 3]
-L4:
-	add	x6, x6, 1
-	cmp	x4, x5
-	csel	x8, x4, x5, ge
-	cmp	x3, x8
-	ble	L12
-L5:
-	ldr	x9, [x0, x4, lsl 3]
-	ldr	x8, [x1, x5, lsl 3]
-	cmp	x9, x8
-	bge	L3
-	add	x4, x4, 1
-	mov	x7, x6
-	str	x9, [x10, x6, lsl 3]
-	b	L4
-L12:
-	cmp	x4, x3
-	bge	L6
-	mov	x8, x4
-	mov	x9, x7
-	lsl	x6, x7, 3
-	sub	x6, x6, x4, lsl 3
-	add	x6, x2, x6
-L7:
-	ldr	x7, [x0, x4, lsl 3]
-	str	x7, [x6, x4, lsl 3]
-	add	x4, x4, 1
-	cmp	x4, x3
-	bne	L7
-	add	x4, x4, x9
-	sub	x7, x4, x8
-L6:
-	cmp	x5, x3
-	bge	L1
-	mov	x0, x5
-	lsl	x7, x7, 3
-	sub	x5, x7, x5, lsl 3
-	add	x2, x2, x5
-L8:
-	ldr	x4, [x1, x0, lsl 3]
-	str	x4, [x2, x0, lsl 3]
-	add	x0, x0, 1
-	cmp	x0, x3
-	bne	L8
-L1:
+	.globl	merge
+	.type	merge, @function
+merge:
+.LFB0:
+	.cfi_startproc
+	endbr64
+	movq	%rdi, %r11
+	movq	%rsi, %r10
+	movl	$0, %eax
+	movl	$0, %esi
+	movl	$0, %edi
+	jmp	.L2
+.L3:
+	addq	$1, %rsi
+	movq	%r8, (%rdx,%rax,8)
+	leaq	1(%rax), %rax
+.L2:
+	cmpq	%rsi, %rdi
+	movq	%rsi, %r8
+	cmovge	%rdi, %r8
+	cmpq	%rcx, %r8
+	jge	.L6
+	movq	(%r11,%rdi,8), %r9
+	movq	(%r10,%rsi,8), %r8
+	cmpq	%r8, %r9
+	jge	.L3
+	addq	$1, %rdi
+	movq	%r9, (%rdx,%rax,8)
+	leaq	1(%rax), %rax
+	jmp	.L2
+.L7:
+	movq	(%r11,%rdi,8), %r8
+	movq	%r8, (%rdx,%rax,8)
+	leaq	1(%rax), %rax
+	leaq	1(%rdi), %rdi
+.L6:
+	cmpq	%rcx, %rdi
+	jl	.L7
+	jmp	.L8
+.L9:
+	movq	(%r10,%rsi,8), %rdi
+	movq	%rdi, (%rdx,%rax,8)
+	leaq	1(%rax), %rax
+	leaq	1(%rsi), %rsi
+.L8:
+	cmpq	%rcx, %rsi
+	jl	.L9
 	ret
-LFE0:
-	.section __TEXT,__eh_frame,coalesced,no_toc+strip_static_syms+live_support
-EH_frame1:
-	.set L$set$0,LECIE1-LSCIE1
-	.long L$set$0
-LSCIE1:
-	.long	0
-	.byte	0x3
-	.ascii "zR\0"
-	.uleb128 0x1
-	.sleb128 -8
-	.uleb128 0x1e
-	.uleb128 0x1
-	.byte	0x10
-	.byte	0xc
-	.uleb128 0x1f
-	.uleb128 0
-	.align	3
-LECIE1:
-LSFDE1:
-	.set L$set$1,LEFDE1-LASFDE1
-	.long L$set$1
-LASFDE1:
-	.long	LASFDE1-EH_frame1
-	.quad	LFB0-.
-	.set L$set$2,LFE0-LFB0
-	.quad L$set$2
-	.uleb128 0
-	.align	3
-LEFDE1:
-	.ident	"GCC: (Homebrew GCC 14.2.0) 14.2.0"
-	.subsections_via_symbols
+	.cfi_endproc
+.LFE0:
+	.size	merge, .-merge
+	.ident	"GCC: (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0"
+	.section	.note.GNU-stack,"",@progbits
+	.section	.note.gnu.property,"a"
+	.align 8
+	.long	1f - 0f
+	.long	4f - 1f
+	.long	5
+0:
+	.string	"GNU"
+1:
+	.align 8
+	.long	0xc0000002
+	.long	3f - 2f
+2:
+	.long	0x3
+3:
+	.align 8
+4:
