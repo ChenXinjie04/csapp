@@ -1,8 +1,10 @@
 #include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
 
-void sigintHandler() {
+void sigintHandler(int sig) {
+	printf("sig: %d\n", sig);
 	return;
 }
 
