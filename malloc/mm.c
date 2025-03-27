@@ -126,7 +126,7 @@ void *mm_malloc(size_t size) {
 	if (size < DSIZE) {
 		asize = DSIZE;
 	} else {
-		asize = DSIZE * ((size + (DSIZE-1))/DSIZE);
+		asize = DSIZE * ((size + DSIZE + (DSIZE-1))/DSIZE);
 	}
 
 	if ((bp = find_fit(asize)) != NULL) {
@@ -143,27 +143,40 @@ void *mm_malloc(size_t size) {
 }
 
 static void *find_fit(size_t asize) {
-	void *bp = heap_listp;
+	void *bp;
+	static void *startp = NULL;
+	if (startp == NULL) {
+		startp = heap_listp;
+	}
+	bp = startp;
 
-	size_t size = GET_SIZE(HDRP(bp));
-	while (size != 0) {
-		if ((size - 8) >= asize) {
-			break;
-		} 
-		bp = NEXT_BLKP(bp);
-		size = GET_SIZE(HDRP(bp));
+	while (1) {
+		if (GET_SIZE(HDRP(NEXT_BLKP(bp)))) {
+			bp = NEXT_BLKP(bp);
+		} else {
+			bp = heap_listp;
+		}
+		if (bp == startp) break;
+		if (GET_SIZE(HDRP(bp)) >= asize) {
+			startp = bp;
+			return bp;
+		}
 	}
 
-	return bp;
+	return NULL;
 }
 
 static void place(void *bp, size_t asize) {
-	size_t size = GET_SIZE(HDRP(bp));
-	size_t used_size = asize + 2;
-	size_t remain_size = size - used_size;
+	size_t csize = GET_SIZE(HDRP(bp));
 
-	PUT(HDRP(bp), PACK(used_size, 1));
-	PUT(FTRP(bp), PACK(used_size, 1));
-	PUT(HDRP(NEXT_BLKP(bp)), PACK(remain_size, 0));
-	PUT(FTRP(NEXT_BLKP(bp)), PACK(remain_size, 0));
+	if ((csize - asize) > 2*DSIZE) {
+		PUT(HDRP(bp), PACK(asize, 1));
+		PUT(FTRP(bp), PACK(asize, 1));
+		bp = NEXT_BLKP(bp);
+		PUT(HDRP(bp), PACK(csize - asize, 0));
+		PUT(FTRP(bp), PACK(csize - asize, 0));
+	} else {
+		PUT(HDRP(bp), PACK(csize, 1));
+		PUT(FTRP(bp), PACK(csize, 1));
+	}
 }
