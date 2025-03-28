@@ -35,36 +35,46 @@ static unsigned int setMask;
 static unsigned int hit;
 static unsigned int miss;
 static unsigned int eviction;
+static int verbose;
 
 static void initCache(int, int, int);
 static void initCacheLines(cacheLinePtr);
 static void initMask();
-static void printCache();
-static void printSet(cacheSetPtr);
-static void printLine(cacheLinePtr);
+// static void printCache();
+// static void printSet(cacheSetPtr);
+// static void printLine(cacheLinePtr);
 static void readData(unsigned int);
 static void writeData(unsigned int);
 static int isHit(unsigned int, unsigned int);
 static void evict(unsigned int, unsigned int);
 static void writeLine(cacheLinePtr, unsigned int);
+static void update(unsigned int);
 
 static void initCache(int s, int E, int b) {
     LOG("In initCache s=%d E=%d b=%d\n", s, E, b);
-    numberOfSets = s;
+    blockWidth = b;
+    setWidth = s;
+    numberOfSets = 1;
+    numberOfBlocks = 1;
     numberOfLines = E;
-    numberOfBlocks = b;
+    for (int i = 0; i < b; ++i) {
+        numberOfBlocks *= 2;
+    }
+    for (int i = 0; i < s; ++i) {
+        numberOfSets *= 2;
+    }
 
     initMask();
 
     cacheBase = (cachePtr) malloc(sizeof(cache));
-    cacheBase->sets = (cacheSetPtr) malloc(s*sizeof(cacheSet));
+    cacheBase->sets = (cacheSetPtr) malloc(numberOfSets*sizeof(cacheSet));
     if (cacheBase->sets == NULL) {
         printf("malloc error\n");
         exit(1);
     }
 
     cacheSetPtr setPtr = cacheBase->sets;
-    for (int i = 0; i < s; ++i) {
+    for (int i = 0; i < numberOfSets; ++i) {
         setPtr->lines = (cacheLinePtr) malloc(E*sizeof(cacheLine));
         if (setPtr->lines == NULL) {
             printf("malloc error\n");
@@ -86,48 +96,47 @@ void initCacheLines(cacheLinePtr lineBase) {
 }
 
 static void initMask() {
-    int b = numberOfBlocks;
-    int s = numberOfSets;
-    while (b /= 2) blockWidth += 1;
-
-    while (s /= 2) setWidth += 1;
     setMask = ((1 << setWidth) - 1) << blockWidth;
 
     unsigned tagWidth = 32 - blockWidth - setWidth;
     tagMask = ((1 << tagWidth) - 1) << (blockWidth + setWidth);
 }
 
-void printCache() {
-    LOG("In printCache\n");
-    printf("Valid\t\tTag\t\ttimes\n");
-    cacheSetPtr setPtr = cacheBase->sets;
-    for (int i = 0; i < numberOfSets; ++i) {
-        printSet(setPtr);
-        setPtr += 1;
-    }
-}
+// void printCache() {
+//     LOG("In printCache\n");
+//     printf("Valid\t\tTag\t\ttimes\n");
+//     cacheSetPtr setPtr = cacheBase->sets;
+//     for (int i = 0; i < numberOfSets; ++i) {
+//         printSet(setPtr);
+//         setPtr += 1;
+//     }
+// }
 
-void printSet(cacheSetPtr setPtr) {
-    LOG("In printSet\n");
-    cacheLinePtr linePtr = setPtr->lines;
-    for (int i = 0; i < numberOfLines; ++i) {
-        printLine(linePtr);
-        linePtr += 1;
-    }
-}
+// void printSet(cacheSetPtr setPtr) {
+//     LOG("In printSet\n");
+//     cacheLinePtr linePtr = setPtr->lines;
+//     for (int i = 0; i < numberOfLines; ++i) {
+//         printLine(linePtr);
+//         linePtr += 1;
+//     }
+// }
 
-void printLine(cacheLinePtr linePtr) {
-    LOG("In printLine\n");
-   printf("%d\t%d\t%d\n", linePtr->valid, linePtr->tag, linePtr->times);
-}
+// void printLine(cacheLinePtr linePtr) {
+//     LOG("In printLine\n");
+//    printf("%d\t%d\t%d\n", linePtr->valid, linePtr->tag, linePtr->times);
+// }
 
 static void readData(unsigned int address) {
     LOG("In readData\n");
     unsigned int tag = GET_TAG(address);
     unsigned int setNum = GET_SET(address);
+    update(setNum);
 
     if (isHit(tag, setNum)) {
         LOG("hit\n");
+        if (verbose) {
+            printf("hit ");
+        }
         hit += 1;
     } else {
         LOG("miss\n");
@@ -139,8 +148,12 @@ static void readData(unsigned int address) {
 static void writeData(unsigned int address) {
     unsigned int tag = GET_TAG(address);
     unsigned int setNum = GET_SET(address);
+    update(setNum);
 
     if (isHit(tag, setNum)) {
+        if (verbose) {
+            printf("hit ");
+        }
         hit += 1;
     } else {
         miss += 1;
@@ -148,14 +161,23 @@ static void writeData(unsigned int address) {
     }
 }
 
+static void update(unsigned int setNum) {
+    cacheLinePtr linePtr = GET_LINE_BASE(setNum);
+    for (int i = 0; i < numberOfLines; ++i) {
+        linePtr->times -= 1;
+        linePtr += 1;
+    }
+}
+
 static void evict(unsigned int tag, unsigned int setNum) {
-    LOG("In evict");
+    LOG("In evict\n");
     cacheLinePtr linePtr = GET_LINE_BASE(setNum);
     unsigned int minTimes = linePtr->times;
     cacheLinePtr evictPtr = linePtr;
     
     for (int i = 0; i < numberOfLines; ++i) {
         if (linePtr->valid == 0) {
+            if (verbose) printf("miss ");
             writeLine(linePtr, tag);
             return;
         }
@@ -165,6 +187,7 @@ static void evict(unsigned int tag, unsigned int setNum) {
         }
         linePtr += 1;
     }
+    if (verbose) printf("miss evict ");
     eviction += 1;
     writeLine(evictPtr, tag);
 }
@@ -172,7 +195,7 @@ static void evict(unsigned int tag, unsigned int setNum) {
 static void writeLine(cacheLinePtr linePtr, unsigned int tag) {
     linePtr->valid = 1;
     linePtr->tag = tag;
-    linePtr->times = 1;
+    linePtr->times = 0x3f3f3f3f;
 }
 
 static int isHit(unsigned int tag, unsigned int setNum) {
@@ -192,7 +215,15 @@ int main(int argc, char* argv[])
 {
     int ch;
     int s, E, b;
-    while ((ch = getopt(argc, argv, "s:E:b:t:")) != -1) {
+    char op;
+    unsigned int address;
+    unsigned int co;
+    FILE* fd;
+    char *fileName;
+
+    verbose = 0;
+
+    while ((ch = getopt(argc, argv, "s:E:b:t:v")) != -1) {
         switch (ch) {
             case 's':
                 s = atoi(optarg);
@@ -204,15 +235,45 @@ int main(int argc, char* argv[])
                 b = atoi(optarg);
                 break;
             case 't':
-                printf("Will open the file: %s\n", optarg);
+                fileName = optarg;
+                break;
+            case 'v':
+                verbose = 1;
                 break;
             case '?':
             default:
                 exit(1);
         }
     }
-
+    fd = fopen(fileName, "r");
+    if (fd == NULL) {
+        printf("Open failed\n");
+        exit(1);
+    }
     initCache(s, E, b);
+
+    while(fscanf(fd, " %c %x,%d", &op, &address, &co) != EOF) {
+        if (verbose && op != 'I') printf("%c %x,%d ", op, address, co);
+        switch(op) {
+            case 'L':
+                readData(address);
+                break;
+            case 'S':
+                writeData(address);
+                break;
+            case 'M':
+                readData(address);
+                writeData(address);
+                break;
+            case 'I':
+                continue;
+            default:
+                printf("invalid operation\n");
+                exit(1);
+        }
+        if (verbose) printf("\n");
+    }
+    
     printSummary(hit, miss, eviction);
     return 0;
 }
