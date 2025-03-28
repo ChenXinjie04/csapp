@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdint.h>
 
 #define GET_TAG(address) ((address & tagMask)>>(blockWidth+setWidth))
 #define GET_SET(address) ((address & setMask)>>blockWidth)
@@ -12,7 +13,7 @@
 
 typedef struct {
     unsigned int valid;
-    unsigned int tag;
+    uint64_t tag;
     unsigned int times;
 } cacheLine, *cacheLinePtr;
 
@@ -25,13 +26,13 @@ typedef struct {
 } cache, *cachePtr;
 
 static cachePtr cacheBase;
-static unsigned int numberOfSets;
-static unsigned int numberOfLines;
-static unsigned int numberOfBlocks;
+static uint64_t numberOfSets;
+static uint64_t numberOfLines;
+static uint64_t numberOfBlocks;
 static unsigned int blockWidth;
 static unsigned int setWidth;
-static unsigned int tagMask;
-static unsigned int setMask;
+static uint64_t tagMask;
+static uint64_t setMask;
 static unsigned int hit;
 static unsigned int miss;
 static unsigned int eviction;
@@ -43,12 +44,12 @@ static void initMask();
 // static void printCache();
 // static void printSet(cacheSetPtr);
 // static void printLine(cacheLinePtr);
-static void readData(unsigned int);
-static void writeData(unsigned int);
-static int isHit(unsigned int, unsigned int);
-static void evict(unsigned int, unsigned int);
-static void writeLine(cacheLinePtr, unsigned int);
-static void update(unsigned int);
+static void readData(uint64_t);
+static void writeData(uint64_t);
+static int isHit(uint64_t, uint64_t);
+static void evict(uint64_t, uint64_t);
+static void writeLine(cacheLinePtr, uint64_t);
+static void update(uint64_t);
 
 static void initCache(int s, int E, int b) {
     LOG("In initCache s=%d E=%d b=%d\n", s, E, b);
@@ -74,7 +75,7 @@ static void initCache(int s, int E, int b) {
     }
 
     cacheSetPtr setPtr = cacheBase->sets;
-    for (int i = 0; i < numberOfSets; ++i) {
+    for (uint64_t i = 0; i < numberOfSets; ++i) {
         setPtr->lines = (cacheLinePtr) malloc(E*sizeof(cacheLine));
         if (setPtr->lines == NULL) {
             printf("malloc error\n");
@@ -87,7 +88,7 @@ static void initCache(int s, int E, int b) {
 
 void initCacheLines(cacheLinePtr lineBase) {
     cacheLinePtr linePtr = lineBase;
-    for (int i = 0; i < numberOfLines; ++i) {
+    for (uint64_t i = 0; i < numberOfLines; ++i) {
         linePtr->valid = 0;
         linePtr->tag = 0;
         linePtr->times = 0;
@@ -126,10 +127,10 @@ static void initMask() {
 //    printf("%d\t%d\t%d\n", linePtr->valid, linePtr->tag, linePtr->times);
 // }
 
-static void readData(unsigned int address) {
+static void readData(uint64_t address) {
     LOG("In readData\n");
-    unsigned int tag = GET_TAG(address);
-    unsigned int setNum = GET_SET(address);
+    uint64_t tag = GET_TAG(address);
+    uint64_t setNum = GET_SET(address);
     update(setNum);
 
     if (isHit(tag, setNum)) {
@@ -145,9 +146,9 @@ static void readData(unsigned int address) {
     }
 }
 
-static void writeData(unsigned int address) {
-    unsigned int tag = GET_TAG(address);
-    unsigned int setNum = GET_SET(address);
+static void writeData(uint64_t address) {
+    uint64_t tag = GET_TAG(address);
+    uint64_t setNum = GET_SET(address);
     update(setNum);
 
     if (isHit(tag, setNum)) {
@@ -161,21 +162,21 @@ static void writeData(unsigned int address) {
     }
 }
 
-static void update(unsigned int setNum) {
+static void update(uint64_t setNum) {
     cacheLinePtr linePtr = GET_LINE_BASE(setNum);
-    for (int i = 0; i < numberOfLines; ++i) {
+    for (uint64_t i = 0; i < numberOfLines; ++i) {
         linePtr->times -= 1;
         linePtr += 1;
     }
 }
 
-static void evict(unsigned int tag, unsigned int setNum) {
+static void evict(uint64_t tag, uint64_t setNum) {
     LOG("In evict\n");
     cacheLinePtr linePtr = GET_LINE_BASE(setNum);
     unsigned int minTimes = linePtr->times;
     cacheLinePtr evictPtr = linePtr;
     
-    for (int i = 0; i < numberOfLines; ++i) {
+    for (uint64_t i = 0; i < numberOfLines; ++i) {
         if (linePtr->valid == 0) {
             if (verbose) printf("miss ");
             writeLine(linePtr, tag);
@@ -192,18 +193,18 @@ static void evict(unsigned int tag, unsigned int setNum) {
     writeLine(evictPtr, tag);
 }
 
-static void writeLine(cacheLinePtr linePtr, unsigned int tag) {
+static void writeLine(cacheLinePtr linePtr, uint64_t tag) {
     linePtr->valid = 1;
     linePtr->tag = tag;
     linePtr->times = 0x3f3f3f3f;
 }
 
-static int isHit(unsigned int tag, unsigned int setNum) {
+static int isHit(uint64_t tag, uint64_t setNum) {
     LOG("In isHit. tag = %d setNum = %d\n", tag, setNum);
     cacheLinePtr linePtr = GET_LINE_BASE(setNum);
-    for (int i = 0; i < numberOfLines; ++i) {
+    for (uint64_t i = 0; i < numberOfLines; ++i) {
         if (linePtr->tag == tag && linePtr->valid) {
-            linePtr->times += 1;
+            linePtr->times = 0x3f3f3f3f;
             return 1;
         }
         linePtr += 1;
