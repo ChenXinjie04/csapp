@@ -26,10 +26,7 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N])
     if (M == 32) {
         for (int i = 0; i < 32; i += 8) {
             for (int j = 0; j < 32; j += 8) {
-                for (int k = 0; k < 8; ++k) {
-                    a = A[i+k][j+0];
-                    b = A[i+k][j+1];
-                    c = A[i+k][j+2];
+                for (int k = 0; k < 8; ++k) { a = A[i+k][j+0]; b = A[i+k][j+1]; c = A[i+k][j+2];
                     d = A[i+k][j+3];
                     e = A[i+k][j+4];
                     f = A[i+k][j+5];
