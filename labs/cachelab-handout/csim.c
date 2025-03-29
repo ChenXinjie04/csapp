@@ -274,7 +274,7 @@ int main(int argc, char* argv[])
         }
         if (verbose) printf("\n");
     }
-    
+
     printSummary(hit, miss, eviction);
     return 0;
 }
