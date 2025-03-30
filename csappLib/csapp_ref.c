@@ -27,7 +27,7 @@
 /**************************
  * Error-handling functions
  **************************/
-/* $begin errorfuns */
+/* $begin errorfus */
 /* $begin unixerror */
 void unix_error(char *msg) /* Unix-style error */
 {
