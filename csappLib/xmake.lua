@@ -1,4 +1,6 @@
 add_rules("mode.debug", "mode.release")
+set_config("cflags", "-m64 -O0 -Wall -Werror")
+set_config("cc", "gcc")
 
 target("main")
     set_kind("binary")
