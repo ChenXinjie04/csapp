@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <dirent.h>
 
 /* Default file permissions are DEF_MODE & ~DEF_UMASK */
 /* $begin createmasks */
