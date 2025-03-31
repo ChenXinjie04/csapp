@@ -1,21 +1,31 @@
 #include "csapp.h"
 #include <fcntl.h>
 #include <rpc/netdb.h>
+#include <stdlib.h>
 
-int main(int argc, char** argv) {
-    char buf[MAXBUF];
-    int fd;
-    char *str = "fo\n";
-    rio_t rio;
-    strcpy(buf, str);
+void sigchldHandler(int sig) {
+    int status;
+    while (wait(&status) != -1) {
+        Sio_puts("Handler reaped child\n");
+    }
+    sleep(1);
+    return;
+}
 
-    if ((fd = open("/home/andy/Desktop/csapp/csappLib/foo.txt", 
-        O_RDWR|O_APPEND, 0)) < 0) {
-        unix_error("open");
+int main(int argc, char *argv[], char *envp[]) {
+    pid_t pid;
+    if (signal(SIGCHLD, sigchldHandler) == SIG_ERR) {
+        perror("signal");
+        _exit(1);
     }
 
-    Rio_readinitb(&rio, fd);
-    Rio_writen(fd, buf, 3);
-
+    for (int i = 0; i < 3; ++i) {
+        if ((pid = Fork()) == 0) {
+            COLOR_PRINT(GRN, "hello from child %d\n", getpid());
+            exit(0);
+        }
+    }
+    while (1)
+        ;
     return 0;
 }

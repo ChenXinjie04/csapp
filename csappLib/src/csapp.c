@@ -34,8 +34,22 @@ void dns_error(char *msg) /* Obsolete gethostbyname error */
 }
 /* &end errorfuns */
 
+/*********************************************
+ * Wrappers for unix process control functions
+ *********************************************/
+
+/* &begin forkwrapper */
+pid_t Fork(void) {
+  pid_t pid;
+  if ((pid = fork()) < 0) {
+    unix_error("Fork error");
+  }
+  return pid;
+}
+/* &end forkwrapper */
+
 /* &begin wait */
-pid_t wait(int *status) {
+pid_t Wait(int *status) {
   pid_t pid;
   if ((pid = wait(status)) < 0) {
     unix_error("Wait");
@@ -86,6 +100,89 @@ void Setpgid(pid_t pid, pid_t pgid) {
 }
 
 pid_t Getpgrp(void) { return getpgrp(); }
+
+/*************************************************************
+ * The Sio (Signal-safe I/O) package - simple reentrant output
+ * functions that are safe for signal handlers.
+ *************************************************************/
+
+/* Private sio functions */
+
+/* &begin sioprivate */
+/* sio_reverse - Reverse a string (from K&R) */
+static void sio_reverse(char s[]) {
+  int c, i, j;
+  
+  for (i = 0, j = strlen(s)-1; i < j; i++, j--) {
+    c = s[i];
+    s[i] = s[j];
+    s[j] = c;
+  }
+}
+
+/* sio_ltoa - Convert long to base b string (from K&R) */
+static void sio_ltoa(long v, char s[], int b) {
+  char *bufp = s;
+  int neg = 0;
+
+  if (v == 0) {
+    *bufp++ = '0';
+  }
+
+  if (v < 0) {
+    v = -v;
+    neg = 1;
+  }
+  
+  while (v) {
+    *bufp++ = (v % b >= 10) ? (v % b + 'a' - 10) : (v % b + '0');
+    v /= b;
+  }
+
+  if (neg) {
+    *bufp++ = '-';
+  }
+
+  *bufp = '\0';
+  
+  sio_reverse(s);
+}
+
+/* sio_strlen - Return length of string (from K&R) */
+static size_t sio_strlen(char s[]) {
+  int len = 0;
+  char *bufp = s;
+
+  while (*bufp != '\0') {
+    bufp += 1;
+    len += 1;
+  }
+
+  return len;
+}
+
+/* &end sioprivate */
+
+/* Public Sio functions */
+/* &begin siopublic */
+ssize_t Sio_puts(char s[]) /* Put string */
+{
+  return write(STDOUT_FILENO, s, sio_strlen(s));
+}
+
+ssize_t Sio_putl(long v) /* Put long */
+{
+  char buf[128];
+  sio_ltoa(v, buf, 10);
+  return Sio_puts(buf);
+}
+
+void Sio_puterror(char *msg) /* Put error message and exit */
+{
+  Sio_puts(msg);
+  _exit(1);
+}
+/* &end siopublic */
 
 ssize_t rio_readn(int fd, void *usrbuf, size_t n) {
   size_t nleft = n;
