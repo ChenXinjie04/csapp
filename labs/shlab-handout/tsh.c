@@ -183,24 +183,27 @@ void eval(char *cmdline)
     pid_t pid;
     sigset_t mask_one, prev_all;
 
-    sigemptyset(&mask_one);
-    sigaddset(&mask_one, SIGCHLD);
-    sigprocmask(SIG_BLOCK, &mask_one, &prev_all);
     bg = parseline(cmdline, argv);
 
-    if ((pid = fork()) == 0) {
-        sigprocmask(SIG_SETMASK, &prev_all, NULL);
-        setpgid(0, 0);
-        do_bgfg(argv);
-    }
-    
-    state = (bg) ? BG : FG;
-    addjob(jobs, pid, state, cmdline);
-    sigprocmask(SIG_SETMASK, &prev_all, NULL);
+    if (!builtin_cmd(argv)) {
+        sigemptyset(&mask_one);
+        sigaddset(&mask_one, SIGCHLD);
+        sigprocmask(SIG_BLOCK, &mask_one, &prev_all);
+        if ((pid = fork()) == 0) {
+            sigprocmask(SIG_SETMASK, &prev_all, NULL);
+            setpgid(0, 0);
+            do_bgfg(argv);
+        }
 
-    if (state == FG) {
-        waitfg(pid);
+        state = (bg) ? BG : FG;
+        addjob(jobs, pid, state, cmdline);
+        sigprocmask(SIG_SETMASK, &prev_all, NULL);
+
+        if (state == FG) {
+            waitfg(pid);
+        }
     }
+
     return;
 }
 
@@ -283,10 +286,8 @@ int builtin_cmd(char **argv)
 void do_bgfg(char **argv) 
 {
     VERBOSE("do_bgfg: entering\n");
-    if (!builtin_cmd(argv)) {
-        if (execve(argv[0], argv, environ) < 0) {
-            unix_error("do_bgfg error");
-        }
+    if (execve(argv[0], argv, environ) < 0) {
+        unix_error("do_bgfg error");
     }
 
     VERBOSE("do_bgfg: exiting\n");
