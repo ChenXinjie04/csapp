@@ -76,6 +76,7 @@ void sigint_handler(int sig);
 int parseline(const char *cmdline, char **argv); 
 void sigquit_handler(int sig);
 
+/* &begin job declaration */
 void clearjob(struct job_t *job);
 void initjobs(struct job_t *jobs);
 int maxjid(struct job_t *jobs); 
@@ -85,8 +86,11 @@ pid_t fgpid(struct job_t *jobs);
 struct job_t *getjobpid(struct job_t *jobs, pid_t pid);
 struct job_t *getjobjid(struct job_t *jobs, int jid); 
 int pid2jid(pid_t pid); 
+int jid2pid(int jid);
 void listjobs(struct job_t *jobs);
 void changeJobStatePid(pid_t pid, int state);
+int contJob(char *);
+/* &end job declaration */
 
 /* Job wrappers */
 void Deletejob(struct job_t *, pid_t);
@@ -275,6 +279,27 @@ int builtin_cmd(char **argv)
         listjobs(jobs);
         return 1;
     }
+    
+    if (!strcmp("quit", argv[0])) {
+        exit(0);
+    }
+    
+    if (!strcmp("bg", argv[0])) {
+        pid_t pid;
+        pid = contJob(argv[1]);
+        changeJobStatePid(pid, BG);
+        VERBOSE("builtin_cmd: Job (%d) continued\n", pid);
+        return 1;
+    }
+    
+    if (!strcmp("fg", argv[0])) {
+        pid_t pid;
+        pid = contJob(argv[1]);
+        changeJobStatePid(pid, FG);
+        VERBOSE("builtin_cmd: Job (%d) continued\n", pid);
+        waitfg(pid);
+        return 1;
+    }
 
     VERBOSE("builtin_cmd: exiting\n")
     return 0;     /* not a builtin command */
@@ -299,8 +324,8 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
-    VERBOSE("waitfg: entering");
-    while (waitpid(pid, NULL, WNOHANG|WSTOPPED) == 0) {
+    VERBOSE("waitfg: entering\n");
+    while (fgpid(jobs) == pid) {
         sleep(1);
     }
 
@@ -542,6 +567,19 @@ int pid2jid(pid_t pid)
     return 0;
 }
 
+/* jid2pid - Map job ID 2 process ID */
+int jid2pid(int jid) {
+    int i;
+    
+    if (jid < 0) return 0;
+    for (i = 0; i < MAXJOBS; ++i) {
+        if (jobs[i].jid == jid) {
+            return jobs[i].pid;
+        }
+    }
+    return 0;
+}
+
 /* listjobs - Print the job list */
 void listjobs(struct job_t *jobs) 
 {
@@ -574,7 +612,7 @@ void changeJobStatePid(pid_t pid, int state) {
     struct job_t *curJob;
 
     if ((curJob = getjobpid(jobs, pid)) == NULL) {
-        printf("changeJobStatePid error\n");
+        printf("(%d) changeJobStatePid error\n", pid);
         exit(0);
     }
     curJob->state = state;
@@ -601,6 +639,22 @@ int Pid2jid(pid_t pid) {
     }
     return jid;
 }
+
+int contJob(char *jobStr) {
+    int jid;
+    pid_t pid;
+
+    sscanf(jobStr, "%% %d", &jid);
+    pid = jid2pid(jid);
+    if (pid <= 0) {
+        printf("contJob: pid error\n");
+        exit(0);
+    }
+    kill(-pid, SIGCONT);
+
+    return pid;
+}
+
 /******************************
  * end job list helper routines
  ******************************/
