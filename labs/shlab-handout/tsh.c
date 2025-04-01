@@ -25,6 +25,14 @@
 #define BG 2    /* running in background */
 #define ST 3    /* stopped */
 
+/* Verbose output */
+#define VERBOSE(msg, ...) \
+    { \
+        if (verbose) { \
+        printf(msg, ##__VA_ARGS__);\
+        } \
+    } \
+
 /* 
  * Jobs states: FG (foreground), BG (background), ST (stopped)
  * Job state transitions and enabling actions:
@@ -78,6 +86,11 @@ struct job_t *getjobpid(struct job_t *jobs, pid_t pid);
 struct job_t *getjobjid(struct job_t *jobs, int jid); 
 int pid2jid(pid_t pid); 
 void listjobs(struct job_t *jobs);
+void changeJobStatePid(struct job_t *jobs, int state, int pid);
+
+/* Job wrappers */
+void Deletejob(struct job_t *, pid_t);
+int Pid2jid(pid_t pid);
 
 void usage(void);
 void unix_error(char *msg);
@@ -165,6 +178,29 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
+    char *argv[MAXARGS];
+    int bg, state;
+    pid_t pid;
+    sigset_t mask_one, prev_all;
+
+    sigemptyset(&mask_one);
+    sigaddset(&mask_one, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &mask_one, &prev_all);
+    bg = parseline(cmdline, argv);
+
+    if ((pid = fork()) == 0) {
+        sigprocmask(SIG_SETMASK, &prev_all, NULL);
+        setpgid(0, 0);
+        do_bgfg(argv);
+    }
+    
+    state = (bg) ? BG : FG;
+    addjob(jobs, pid, state, cmdline);
+    sigprocmask(SIG_SETMASK, &prev_all, NULL);
+
+    if (state == FG) {
+        waitfg(pid);
+    }
     return;
 }
 
@@ -226,7 +262,7 @@ int parseline(const char *cmdline, char **argv)
 }
 
 /* 
- * builtin_cmd - If the user has typed a built-in command then execute
+ * builtin_cmd - If te user has typed a built-in command then execute
  *    it immediately.  
  */
 int builtin_cmd(char **argv) 
@@ -239,6 +275,12 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
+    builtin_cmd(argv);
+    if (!builtin_cmd(argv)) {
+        if (execve(argv[0], argv, environ) < 0) {
+            unix_error("do_bgfg error");
+        }
+    }
     return;
 }
 
@@ -247,6 +289,11 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
+    while (fgpid(jobs) == pid) {
+        sleep(1);
+    }
+
+    printf("waitfg: Process (%d) no longer the fg process\n", pid);
     return;
 }
 
@@ -263,38 +310,96 @@ void waitfg(pid_t pid)
  */
 void sigchld_handler(int sig) 
 {
+    VERBOSE("sigchld_handler: entering\n");
+    pid_t pid;
+    int jid;
+    int status;
+
+    while ((pid = wait(&status)) > 0) {
+        jid = Pid2jid(pid);
+        Deletejob(jobs, pid);
+        VERBOSE("sigchld_handler: Job [%d] (%d) deleted\n", jid, pid);
+        if (WIFEXITED(status)) {
+            VERBOSE("sigchld_handler: Job [%d] (%d) terminates OK (status %d)\n", jid, pid, WEXITSTATUS(status));
+        } else if (WIFSIGNALED(status)) {
+            VERBOSE("sigchld_handler: Job [%d] (%d) terminates (signal %d)\n", jid, pid, WTERMSIG(status));
+        } else if (WIFSTOPPED(status)) {
+            VERBOSE("sigchld_handler: Job [%d] (%d) stopped (signal%d)\n", jid, pid, WSTOPSIG(status));
+        } else {
+            printf("sigchld_handler: control should never reach here\n");
+            exit(0);
+        }
+    }
+
+    if (errno != ECHILD) {
+        unix_error("sigchld_handler error");
+    }
+    VERBOSE("sigchld_handler: exiting\n");
     return;
 }
 
 /* 
- * sigint_handler - The kernel sends a SIGINT to the shell whenver the
- *    user types ctrl-c at the keyboard.  Catch it and send it along
+ * sigint_handler - the kernel sends a sigint to the shell whenver the
+ *    user types ctrl-c at the keyboard.  catch it and send it along
  *    to the foreground job.  
  */
 void sigint_handler(int sig) 
 {
+    int olderrno = errno;
+    int rc, jid;
+    pid_t pid;
+    VERBOSE("sigint_handler: entering\n");
+
+    if ((pid = fgpid(jobs)) == 0) {
+        return;
+    }
+
+    if ((rc = kill(-pid, SIGINT)) < 0) {
+        unix_error("kill");
+   }
+
+    jid = Pid2jid(pid);
+    VERBOSE("sigint_handler: Job [%d] (%d) deleted\n", jid, pid);
+
+    errno = olderrno;
+    VERBOSE("sigint_handler: exiting\n");
     return;
 }
 
 /*
- * sigtstp_handler - The kernel sends a SIGTSTP to the shell whenever
- *     the user types ctrl-z at the keyboard. Catch it and suspend the
- *     foreground job by sending it a SIGTSTP.  
+ * sigtstp_handler - the kernel sends a sigtstp to the shell whenever
+ *     the user types ctrl-z at the keyboard. catch it and suspend the
+ *     foreground job by sending it a sigtstp.  
  */
 void sigtstp_handler(int sig) 
 {
+    int olderrno = errno;
+    int rc;
+    pid_t pid;
+    VERBOSE("sigtstp_handler: entering\n");
+
+    if ((pid = fgpid(jobs)) == 0) {
+        return;
+    }
+
+    if ((rc = kill(-pid, SIGTSTP)) < 0) {
+        unix_error("sigtstp_handler error");
+    }
+
+    errno = olderrno;
+    VERBOSE("sigtstp_handler: exiting");
     return;
 }
 
 /*********************
- * End signal handlers
+ * end signal handlers
  *********************/
 
 /***********************************************
- * Helper routines that manipulate the job list
+ * helper routines that manipulate the job list
  **********************************************/
 
-/* clearjob - Clear the entries in a job struct */
+/* clearjob - clear the entries in a job struct */
 void clearjob(struct job_t *job) {
     job->pid = 0;
     job->jid = 0;
@@ -321,7 +426,9 @@ int maxjid(struct job_t *jobs)
     return max;
 }
 
-/* addjob - Add a job to the job list */
+/* addjob - Add a job to the job list
+* RET: return 1 if success, 0 if fail.
+*/
 int addjob(struct job_t *jobs, pid_t pid, int state, char *cmdline) 
 {
     int i;
@@ -439,6 +546,35 @@ void listjobs(struct job_t *jobs)
 	    printf("%s", jobs[i].cmdline);
 	}
     }
+}
+
+void changeJobStatePid(struct job_t *jobs, int state, pid_t pid) {
+    char *cmdline;
+    struct job_t *curJob;
+    curJob = getjobpid(jobs, pid);
+    cmdline = curJob->cmdline;
+    deletejob(jobs, pid);
+    addjob(jobs, pid, state, cmdline);
+    return;
+}
+/****************************
+ * Job wrappers
+ ****************************/
+void Deletejob(struct job_t *jobs, pid_t pid) {
+    if (deletejob(jobs, pid) == 0) {
+        printf("sigchld_handler: deltejob error\n");
+        exit(0);
+    }
+    return;
+}
+
+int Pid2jid(pid_t pid) {
+    int jid;
+    if ((jid = pid2jid(pid)) == 0) {
+        printf("pid2jid error\n");
+        exit(0);
+    }
+    return jid;
 }
 /******************************
  * end job list helper routines
