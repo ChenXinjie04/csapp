@@ -86,7 +86,7 @@ struct job_t *getjobpid(struct job_t *jobs, pid_t pid);
 struct job_t *getjobjid(struct job_t *jobs, int jid); 
 int pid2jid(pid_t pid); 
 void listjobs(struct job_t *jobs);
-void changeJobStatePid(struct job_t *jobs, int state, int pid);
+void changeJobStatePid(pid_t pid, int state);
 
 /* Job wrappers */
 void Deletejob(struct job_t *, pid_t);
@@ -311,29 +311,34 @@ void waitfg(pid_t pid)
 void sigchld_handler(int sig) 
 {
     VERBOSE("sigchld_handler: entering\n");
+    int olderrno = errno;
     pid_t pid;
     int jid;
     int status;
 
-    while ((pid = wait(&status)) > 0) {
+    while ((pid = waitpid(-1, &status, WNOHANG|WSTOPPED)) > 0) {
         jid = Pid2jid(pid);
-        Deletejob(jobs, pid);
-        VERBOSE("sigchld_handler: Job [%d] (%d) deleted\n", jid, pid);
         if (WIFEXITED(status)) {
             VERBOSE("sigchld_handler: Job [%d] (%d) terminates OK (status %d)\n", jid, pid, WEXITSTATUS(status));
+            Deletejob(jobs, pid);
+            VERBOSE("sigchld_handler: Job [%d] (%d) deleted\n", jid, pid);
         } else if (WIFSIGNALED(status)) {
             VERBOSE("sigchld_handler: Job [%d] (%d) terminates (signal %d)\n", jid, pid, WTERMSIG(status));
+            Deletejob(jobs, pid);
+            VERBOSE("sigchld_handler: Job [%d] (%d) deleted\n", jid, pid);
         } else if (WIFSTOPPED(status)) {
-            VERBOSE("sigchld_handler: Job [%d] (%d) stopped (signal%d)\n", jid, pid, WSTOPSIG(status));
+            VERBOSE("sigchld_handler: Job [%d] (%d) stopped (signal %d)\n", jid, pid, WSTOPSIG(status));
+            changeJobStatePid(pid, ST);
         } else {
             printf("sigchld_handler: control should never reach here\n");
             exit(0);
         }
     }
 
-    if (errno != ECHILD) {
-        unix_error("sigchld_handler error");
+    if (pid == -1 && errno != ECHILD) {
+        unix_error("waitpid error\n");
     }
+    errno = olderrno;
     VERBOSE("sigchld_handler: exiting\n");
     return;
 }
@@ -379,6 +384,7 @@ void sigtstp_handler(int sig)
     VERBOSE("sigtstp_handler: entering\n");
 
     if ((pid = fgpid(jobs)) == 0) {
+        VERBOSE("sigtstp_handler: no foreground job\n");
         return;
     }
 
@@ -387,7 +393,7 @@ void sigtstp_handler(int sig)
     }
 
     errno = olderrno;
-    VERBOSE("sigtstp_handler: exiting");
+    VERBOSE("sigtstp_handler: exiting\n");
     return;
 }
 
@@ -458,14 +464,17 @@ int addjob(struct job_t *jobs, pid_t pid, int state, char *cmdline)
 int deletejob(struct job_t *jobs, pid_t pid) 
 {
     int i;
+    int jid;
 
     if (pid < 1)
 	return 0;
 
     for (i = 0; i < MAXJOBS; i++) {
 	if (jobs[i].pid == pid) {
+        jid = Pid2jid(pid);
 	    clearjob(&jobs[i]);
 	    nextjid = maxjid(jobs)+1;
+        VERBOSE("deletejob: [%d] (%d) deleted\n", jid, pid);
 	    return 1;
 	}
     }
@@ -548,13 +557,17 @@ void listjobs(struct job_t *jobs)
     }
 }
 
-void changeJobStatePid(struct job_t *jobs, int state, pid_t pid) {
-    char *cmdline;
+void changeJobStatePid(pid_t pid, int state) {
+    VERBOSE("changeJobStatePid: entering\n");
     struct job_t *curJob;
-    curJob = getjobpid(jobs, pid);
-    cmdline = curJob->cmdline;
-    deletejob(jobs, pid);
-    addjob(jobs, pid, state, cmdline);
+
+    if ((curJob = getjobpid(jobs, pid)) == NULL) {
+        printf("changeJobStatePid error\n");
+        exit(0);
+    }
+    curJob->state = state;
+
+    VERBOSE("changeJobStatePid: exiting\n");
     return;
 }
 /****************************
@@ -571,7 +584,7 @@ void Deletejob(struct job_t *jobs, pid_t pid) {
 int Pid2jid(pid_t pid) {
     int jid;
     if ((jid = pid2jid(pid)) == 0) {
-        printf("pid2jid error\n");
+        printf("Job [%d] (%d) pid2jid error\n", jid, pid);
         exit(0);
     }
     return jid;
