@@ -267,6 +267,13 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
+    VERBOSE("builtin_cmd: entering\n");
+    if (!strcmp("jobs", argv[0])) {
+        listjobs(jobs);
+        return 1;
+    }
+
+    VERBOSE("builtin_cmd: exiting\n")
     return 0;     /* not a builtin command */
 }
 
@@ -275,12 +282,14 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
-    builtin_cmd(argv);
+    VERBOSE("do_bgfg: entering\n");
     if (!builtin_cmd(argv)) {
         if (execve(argv[0], argv, environ) < 0) {
             unix_error("do_bgfg error");
         }
     }
+
+    VERBOSE("do_bgfg: exiting\n");
     return;
 }
 
@@ -289,11 +298,13 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
-    while (fgpid(jobs) == pid) {
+    VERBOSE("waitfg: entering");
+    while (waitpid(pid, NULL, WNOHANG|WSTOPPED) == 0) {
         sleep(1);
     }
 
-    printf("waitfg: Process (%d) no longer the fg process\n", pid);
+    VERBOSE("waitfg: Process (%d) no longer the fg process\n", pid);
+    VERBOSE("waitfg: exiting\n");
     return;
 }
 
