@@ -1,4 +1,5 @@
 #include "csapp.h"
+#include <signal.h>
 #include <sys/types.h>
 
 /* &begin errorfuns */ 
@@ -100,6 +101,76 @@ void Setpgid(pid_t pid, pid_t pgid) {
 }
 
 pid_t Getpgrp(void) { return getpgrp(); }
+
+/************************************
+ * Wrappers for Unix signal functions
+ ************************************/
+
+/* &begin sigaction */
+handler_t *Signal(int signum, handler_t handler) {
+  struct sigaction action, old_action;
+
+  action.sa_handler = handler;
+  sigemptyset(&action.sa_mask);
+  action.sa_flags = SA_RESTART;
+
+  if (sigaction(signum, &action, &old_action) < 0) {
+    unix_error("sigaction");
+  }
+
+  return old_action.sa_handler;
+}
+/* &end sigaction */
+void Sigprocmask(int how, const sigset_t *set, sigset_t *oldset) {
+  if (sigprocmask(how, set, oldset) < 0) {
+    unix_error("sigprocmask error");
+  }
+  return;
+}
+
+void Sigemptyset(sigset_t *set) {
+  if (sigemptyset(set) < 0) {
+    unix_error("sigemptyset");
+  }
+  return;
+}
+
+void Sigfillset(sigset_t *set) {
+  if (sigfillset(set) < 0) {
+    unix_error("Sigfillset error");
+  }
+  return;
+}
+
+void Sigaddset(sigset_t *set, int signum) {
+  if (sigaddset(set, signum)) {
+    unix_error("Sigaddset error");
+  }
+  return;
+}
+
+void Sigdelset(sigset_t *set, int signum) {
+  if (sigdelset(set, signum) < 0) {
+    unix_error("sigdelset error");
+  }
+  return;
+}
+
+int Sigismember(const sigset_t *set, int signum) {
+  int rc;
+  if ((rc = Sigismember(set, signum)) < 0) {
+    unix_error("Sigismember error");
+  }
+  return rc;
+}
+
+int Sigsuspend(const sigset_t *set) {
+  int rc = sigsuspend(set);
+  if (errno != EINTR) {
+    unix_error("Sigsuspend error");
+  }
+  return rc;
+}
 
 /*************************************************************
  * The Sio (Signal-safe I/O) package - simple reentrant output

@@ -1,31 +1,29 @@
 #include "csapp.h"
 #include <fcntl.h>
 #include <rpc/netdb.h>
+#include <setjmp.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 
-void sigchldHandler(int sig) {
-    int status;
-    while (wait(&status) != -1) {
-        Sio_puts("Handler reaped child\n");
-    }
-    sleep(1);
-    return;
+sigjmp_buf env;
+
+void sigintHandler(int sig) {
+    siglongjmp(env, 1);
 }
 
 int main(int argc, char *argv[], char *envp[]) {
-    pid_t pid;
-    if (signal(SIGCHLD, sigchldHandler) == SIG_ERR) {
-        perror("signal");
-        _exit(1);
+    if (!sigsetjmp(env, 1)) {
+        Signal(SIGINT, sigintHandler);
+        Sio_puts("starting...\n");
+    } else {
+        Sio_puts("restarting...\n");
     }
-
-    for (int i = 0; i < 3; ++i) {
-        if ((pid = Fork()) == 0) {
-            COLOR_PRINT(GRN, "hello from child %d\n", getpid());
-            exit(0);
-        }
+    
+    while (1) {
+        Sleep(1);
+        Sio_puts("process...\n");
     }
-    while (1)
-        ;
-    return 0;
+    
+    exit(0);
 }

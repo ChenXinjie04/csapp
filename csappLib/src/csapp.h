@@ -98,6 +98,7 @@ void Sigfillset(sigset_t *set);
 void Sigaddset(sigset_t *set, int signum);
 void Sigdelset(sigset_t *set, int signum);
 int Sigismember(const sigset_t *set, int signum);
+int Sigsuspend(const sigset_t *set);
 
 /* Sio (Signal-safe I/O) routines */
 ssize_t sio_puts(char s[]);

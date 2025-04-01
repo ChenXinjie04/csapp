@@ -2,6 +2,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdio.h>
 
 int main(int argc, char *argv[]) {
 	int fd = open("output.txt", O_RDWR, 0);
