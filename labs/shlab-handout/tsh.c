@@ -89,7 +89,7 @@ int pid2jid(pid_t pid);
 int jid2pid(int jid);
 void listjobs(struct job_t *jobs);
 void changeJobStatePid(pid_t pid, int state);
-int contJob(char *);
+void contJob(int);
 /* &end job declaration */
 
 /* Job wrappers */
@@ -183,7 +183,7 @@ int main(int argc, char **argv)
 void eval(char *cmdline) 
 {
     char *argv[MAXARGS];
-    int bg, state;
+    int bg, state, jid;
     pid_t pid;
     sigset_t mask_one, prev_all;
 
@@ -201,10 +201,13 @@ void eval(char *cmdline)
 
         state = (bg) ? BG : FG;
         addjob(jobs, pid, state, cmdline);
+        jid = Pid2jid(pid);
         sigprocmask(SIG_SETMASK, &prev_all, NULL);
 
         if (state == FG) {
             waitfg(pid);
+        } else if (state == BG) {
+            printf("[%d] (%d) %s", jid, pid, cmdline);
         }
     }
 
@@ -285,16 +288,65 @@ int builtin_cmd(char **argv)
     }
     
     if (!strcmp("bg", argv[0])) {
+        int jid;
         pid_t pid;
-        pid = contJob(argv[1]);
+        struct job_t *curJob;
+        if (argv[1] == NULL) {
+            printf("bg command requires PID or %%jobid argument\n");
+            return 1;
+        }
+
+        if (*argv[1] == '%') {
+            sscanf(argv[1], "%% %d", &jid);
+            if ((pid = jid2pid(jid)) == 0) {
+                printf("%%%d: No such job\n", jid);
+                return 1;
+            }
+        } else if (isdigit(*argv[1])) {
+            sscanf(argv[1], "%d", &pid);
+            if (pid2jid(pid) == 0) {
+                printf("(%d): No such process\n", pid);
+                return 1;
+            }
+        } else {
+            printf("bg: argument must be a PID or %%jobid\n");
+            return 1;
+        }
+        curJob = getjobpid(jobs, pid);
+        contJob(pid);
         changeJobStatePid(pid, BG);
+        printf("[%d] (%d) %s", jid, pid, curJob->cmdline);
+
         VERBOSE("builtin_cmd: Job (%d) continued\n", pid);
         return 1;
     }
     
     if (!strcmp("fg", argv[0])) {
+        int jid;
         pid_t pid;
-        pid = contJob(argv[1]);
+        if (argv[1] == NULL) {
+            printf("fg command requires PID or %%jobid argument\n");
+            return 1;
+        }
+
+        if (*argv[1] == '%') {
+            sscanf(argv[1], "%% %d", &jid);
+            if ((pid = jid2pid(jid)) == 0) {
+                printf("%%%d: No such job\n", jid);
+                return 1;
+            }
+            pid = jid2pid(jid);
+        } else if (isdigit(*argv[1])) {
+            sscanf(argv[1], "%d", &pid);
+            if (pid2jid(pid) == 0) {
+                printf("(%d): No such process\n", pid);
+                return 1;
+            }
+        } else {
+            printf("fg: argument must be a PID or %%jobid\n");
+            return 1;
+        }
+        contJob(pid);
         changeJobStatePid(pid, FG);
         VERBOSE("builtin_cmd: Job (%d) continued\n", pid);
         waitfg(pid);
@@ -312,7 +364,8 @@ void do_bgfg(char **argv)
 {
     VERBOSE("do_bgfg: entering\n");
     if (execve(argv[0], argv, environ) < 0) {
-        unix_error("do_bgfg error");
+        printf("%s: Command not found\n", argv[0]);
+        exit(0);
     }
 
     VERBOSE("do_bgfg: exiting\n");
@@ -360,11 +413,11 @@ void sigchld_handler(int sig)
             Deletejob(jobs, pid);
             VERBOSE("sigchld_handler: Job [%d] (%d) deleted\n", jid, pid);
         } else if (WIFSIGNALED(status)) {
-            VERBOSE("sigchld_handler: Job [%d] (%d) terminates (signal %d)\n", jid, pid, WTERMSIG(status));
+            printf("Job [%d] (%d) terminated by signal %d\n", jid, pid, WTERMSIG(status));
             Deletejob(jobs, pid);
             VERBOSE("sigchld_handler: Job [%d] (%d) deleted\n", jid, pid);
         } else if (WIFSTOPPED(status)) {
-            VERBOSE("sigchld_handler: Job [%d] (%d) stopped (signal %d)\n", jid, pid, WSTOPSIG(status));
+            printf("Job [%d] (%d) stopped by signal %d\n", jid, pid, WSTOPSIG(status));
             changeJobStatePid(pid, ST);
         } else {
             printf("sigchld_handler: control should never reach here\n");
@@ -640,19 +693,12 @@ int Pid2jid(pid_t pid) {
     return jid;
 }
 
-int contJob(char *jobStr) {
-    int jid;
-    pid_t pid;
-
-    sscanf(jobStr, "%% %d", &jid);
-    pid = jid2pid(jid);
+void contJob(int pid) {
     if (pid <= 0) {
         printf("contJob: pid error\n");
         exit(0);
     }
     kill(-pid, SIGCONT);
-
-    return pid;
 }
 
 /******************************
