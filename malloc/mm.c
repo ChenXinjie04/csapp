@@ -36,21 +36,13 @@ static void *coalesce(void *);
 static void *find_fit(size_t);
 static void *Find_fit(size_t);
 static void place(void *, size_t);
+static void *Mem_sbrk(size_t);
 void mm_free(void *);
 void *mm_malloc(size_t);
 /* &end func definition */
 
 static char *heap_listp;
 static int verbose = 0;
-
-void *Mem_sbrk(size_t bytes) {
-	void *rc;
-	if ((rc = mem_sbrk(bytes)) == (void *)-1) {
-		printf("mem_sbrk error\n");
-		exit(0);
-	}
-	return rc;
-}
 
 void *Extend_heap(size_t words) {
 	void *rc;
@@ -147,7 +139,7 @@ void *mm_malloc(size_t size) {
 
 static void *Find_fit(size_t asize) {
 	void *rc;
-	if ((rc == find_fit(asize)) == NULL) {
+	if ((rc = find_fit(asize)) == NULL) {
 		return Extend_heap(MAX(CHUNKSIZE, asize)/WSIZE);
 	}
 	return rc;
@@ -155,39 +147,24 @@ static void *Find_fit(size_t asize) {
 
 static void *find_fit(size_t asize) {
 	void *bp;
-	static void *startp = NULL;
-	if (startp == NULL) {
-		startp = heap_listp;
-	}
-	bp = startp;
-
-	while (1) {
-		if (GET_SIZE(HDRP(NEXT_BLKP(bp)))) {
-			bp = NEXT_BLKP(bp);
-		} else {
-			bp = heap_listp;
-		}
-		if (bp == startp) break;
-		if (GET_SIZE(HDRP(bp)) >= asize) {
-			startp = bp;
+	for (bp = heap_listp; GET_SIZE(HDRP(bp)) != 0; bp = NEXT_BLKP(bp)) {
+		if (!GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= asize) {
 			return bp;
 		}
 	}
-
 	return NULL;
 }
 
 static void place(void *bp, size_t asize) {
-	size_t csize = GET_SIZE(HDRP(bp));
-
-	if ((csize - asize) > 2*DSIZE) {
+	size_t size = GET_SIZE(HDRP(bp));
+	if (size - asize >= 4*WSIZE) {
 		PUT(HDRP(bp), PACK(asize, 1));
 		PUT(FTRP(bp), PACK(asize, 1));
 		bp = NEXT_BLKP(bp);
-		PUT(HDRP(bp), PACK(csize - asize, 0));
-		PUT(FTRP(bp), PACK(csize - asize, 0));
+		PUT(HDRP(bp), PACK(size - asize, 0));
+		PUT(FTRP(bp), PACK(size - asize, 0));
 	} else {
-		PUT(HDRP(bp), PACK(csize, 1));
-		PUT(FTRP(bp), PACK(csize, 1));
+		PUT(HDRP(bp), PACK(size, 1));
+		PUT(FTRP(bp), PACK(size, 1));
 	}
 }
