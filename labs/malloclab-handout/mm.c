@@ -9,7 +9,6 @@
  * NOTE TO STUDENTS: Replace this header comment with your own header
  * comment that gives a high level description of your solution.
  */
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -58,6 +57,7 @@ team_t team = {
 
 #define HDRP(bp) ((char *)(bp) - WSIZE)
 #define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
+#define PREVP(bp) ((char *)(bp) + WSIZE)
 #define FREE_LISTP(bp, offset) ((char *)(bp) + (offset) * WSIZE)
 
 #define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)))
@@ -336,7 +336,6 @@ void *find_fit(size_t asize, int idx) {
   for (bp = FREE_LISTP(heap_listp, idx); bp != NULL; bp = (void *)GET_NEXTP(bp)) {
     if (GET_SIZE(bp) >= asize) {
       VERBOSE("find_fit: exiting with NULL\n");
-      removeBlock();
       return bp;
     }
   }
@@ -359,7 +358,9 @@ void insertBlock(void *bp, size_t size) {
 
   PUT(bp, (unsigned int)GET_NEXTP(freep));
   PUT(freep, (unsigned int)bp);
-  VERBOSE("inesrtBlock: insert a free block of size (%d) into free list (%d)\n",
+  PUT(PREVP(bp), (unsigned int)freep);
+  PUT(PREVP(GET_NEXTP(bp)), (unsigned int)bp);
+  VERBOSE("insertBlock: insert a free block of size (%zu) into free list (%d)\n",
           size, idx);
   VERBOSE("insertBlock: exiting\n");
 }
@@ -406,7 +407,5 @@ int freeListIndex(size_t size) {
 int main() {
   mem_init();
   mm_init();
-  removeBlock(FREE_LISTP(heap_listp, 10));
-  printFreeList();
   return 0;
 }
