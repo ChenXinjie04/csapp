@@ -38,9 +38,9 @@ team_t team = {
 #define ALIGNMENT 8
 #define WSIZE 4
 #define DSIZE 8
-#define NFREELIST 11
-#define MIN_BLK_SIZE 4
-#define CHUNCKSIZE (1 << 12)
+#define NFREELIST 13
+#define MIN_BLK_SIZE 16
+#define CHUNCKSIZE (1 << 5)
 
 #define MAX(x, y) ((x) > (y)) ? (x) : (y)
 
@@ -73,7 +73,7 @@ team_t team = {
 /* &begin scalar declaration */
 static char *heap_listp;
 static char *block_listp;
-static int verbose = 1;
+static int verbose = 0;
 static void *pre_bp;
 /* &end scalar declaration */
 
@@ -88,6 +88,7 @@ static void removeBlock(void *);
 static int freeListIndex(size_t);
 static void printFreeList(void);
 static void printOneChain(void *);
+static void checkFreeList();
 /* &end func declaration */
 
 /*
@@ -109,13 +110,13 @@ int mm_init(void) {
   PUT(heap_listp + (NFREELIST + 1) * WSIZE, PACK(8, 1));
   PUT(heap_listp + (NFREELIST + 2) * WSIZE, PACK(0, 1));
 
-  if ((bp = extend_heap(CHUNCKSIZE / WSIZE)) == (void *)-1) {
+  if ((bp = extend_heap((1 << 10) / WSIZE)) == (void *)-1) {
     return -1;
   }
-  insertBlock(bp);
   pre_bp = NULL; /* Temporarily block */
   block_listp = bp;
 
+  insertBlock(bp);
   if (verbose) {
     printHeap();
     printFreeList();
@@ -140,8 +141,9 @@ void *mm_malloc(size_t size) {
 
   asize = (size + 2 * DSIZE - 1) & ~0x7;
   int idx = freeListIndex(asize);
-  while (idx <= 11 && bp == NULL) { /* Search the free list */
-    if (idx == 11) {
+  while (idx <= NFREELIST && bp == NULL) { /* Search the free list */
+    if (idx == NFREELIST) {
+      VERBOSE("mm_malloc: extend heap\n");
       size_t words = MAX(CHUNCKSIZE, asize) / WSIZE;
       if ((bp = extend_heap(words)) == (void *)-1) {
         return NULL;
@@ -154,9 +156,11 @@ void *mm_malloc(size_t size) {
   VERBOSE("mm_malloc: find a suitable block in freelist (%d)\n", idx-1);
 
   place(bp, asize);
-  VERBOSE("mm_malloc: alloc a size (%zu) block success\n", asize);
-  if (verbose)
+  if (verbose) {
     printHeap();
+    printFreeList();
+  }
+  VERBOSE("mm_malloc: alloc a size (%zu) block success\n", asize);
   VERBOSE("mm_malloc: exiting\n");
   return bp;
 }
@@ -173,10 +177,12 @@ void mm_free(void *ptr) {
 
   PUT(HDRP(ptr), PACK(size, 0));
   PUT(FTRP(ptr), PACK(size, 0));
-  VERBOSE("mm_free: free block success\n");
+  VERBOSE("mm_free: free block of size (%zu) success\n", size);
   coalesce(ptr);
-  if (verbose)
+  if (verbose) {
     printHeap();
+    printFreeList();
+  }
   VERBOSE("mm_free: exiting\n");
 }
 /* &end mm_free */
@@ -228,10 +234,12 @@ static void *extend_heap(size_t words) {
  * place - Mark a free block allocated.
  */
 void place(void *bp, size_t asize) {
+  VERBOSE("place: entering\n");
   size_t size;
 
   size = GET_SIZE(HDRP(bp));
-  if (size - asize > MIN_BLK_SIZE) {
+  VERBOSE("asize=%zu size=%zu\n", asize, size);
+  if (size - asize >= MIN_BLK_SIZE) {
     PUT(HDRP(bp), PACK(asize, 1));
     PUT(FTRP(bp), PACK(asize, 1));
     bp = NEXT_BLKP(bp);
@@ -243,6 +251,7 @@ void place(void *bp, size_t asize) {
     PUT(FTRP(bp), PACK(size, 1));
   }
 
+  VERBOSE("place: exiting\n");
   return;
 }
 
@@ -253,7 +262,7 @@ void place(void *bp, size_t asize) {
 /* &begin coalesce */
 void *coalesce(void *bp) {
   VERBOSE("coalesce: entering\n");
-  int prev_alloc, next_alloc, idx;
+  int prev_alloc, next_alloc;
   size_t size;
   void *next_bp;
 
@@ -263,6 +272,7 @@ void *coalesce(void *bp) {
 
   if (prev_alloc && next_alloc) {
     VERBOSE("coalesce: hit cond 1\n");
+    insertBlock(bp);
     return bp;
   }
 
@@ -295,6 +305,7 @@ void *coalesce(void *bp) {
     removeBlock(bp);
     PUT(HDRP(bp), PACK(size, 0));
     PUT(FTRP(bp), PACK(size, 0));
+    insertBlock(bp);
   }
 
   VERBOSE("coalesce: exiting\n");
@@ -309,11 +320,75 @@ void *coalesce(void *bp) {
 /*****************************
  * Mem check function
  *****************************/
+void checkValidHeapAddress(void *p) {
+  if (p < mem_heap_lo() || p > mem_heap_hi()) {
+    printf("invalid address (%p)\n", p);
+    exit(0);
+  }
+}
+
+void checkOneChain(void *);
+int calFreeInChain(void *);
+int calFreeInImplicitList();
+
+void checkFreeList() {
+  int chainFree = 0;
+  for (int i = 0; i < NFREELIST; ++i) {
+    void *freep = FREE_LISTP(heap_listp, i);
+    checkOneChain(freep);
+    chainFree += calFreeInChain(freep);
+  }
+  VERBOSE("checkFreeList: chain internal valid\n");
+  int implicitFree = calFreeInImplicitList();
+  if (chainFree != implicitFree) {
+    fflush(stdout);
+    exit(0);
+  }
+}
+
+int calFreeInChain(void *freep) {
+  void *bp = GET_P(freep);
+  int result = 0;
+  while (bp != NULL) {
+    result += 1;
+    bp = GET_P(bp);
+  }
+  return result;
+}
+
+int calFreeInImplicitList() {
+  VERBOSE("calFreeInImplicitList: entering\n");
+  int result = 0;
+  void *bp = block_listp;
+  while (1) {
+    if (!GET_ALLOC(HDRP(bp))) result += 1;
+    VERBOSE("result update (%d)\n", result);
+    bp = NEXT_BLKP(bp);
+  }
+  VERBOSE("calFreeInImplicitList: exiting\n");
+  return result;
+}
+
+void checkOneChain(void *freep) {
+  void *bp = GET_P(freep);
+  while (bp != NULL) {
+    if ((void *)HDRP(bp) < mem_heap_lo() || (void *)FTRP(bp) > mem_heap_hi()) {
+      printf("find invalid pointer in free list\n");
+      exit(0);
+    }
+    if (GET_ALLOC(HDRP(bp))) {
+      printf("find allocated block in free list\n");
+      exit(0);
+    }
+    bp = GET_P(bp);
+  }
+}
+
 void printHeap(void) {
   VERBOSE("printHeap: entering\n");
   void *bp;
   for (bp = block_listp; GET_SIZE(HDRP(bp)) != 0; bp = NEXT_BLKP(bp)) {
-    printf("size=%d alloc=%d\n", GET_SIZE(HDRP(bp)), GET_ALLOC(HDRP(bp)));
+    printf("\tsize=%d alloc=%d\n", GET_SIZE(HDRP(bp)), GET_ALLOC(HDRP(bp)));
   }
   VERBOSE("printHeap: exiting\n");
   return;
@@ -332,10 +407,6 @@ void printFreeList(void) {
 void printOneChain(void *freep) {
   void *bp = (void *)GET_P(freep);
   while (bp != NULL) {
-    if (GET_ALLOC(HDRP(bp))) {
-      printf("printOneChain: allocated block in free list\n");
-      exit(0);
-    }
     printf("\tblock size (%d)\n", GET_SIZE(HDRP(bp)));
     bp = (void *)GET_P(bp);
   }
@@ -347,18 +418,14 @@ void printOneChain(void *freep) {
  * RETURN: a (void *) pointer to the beginning of payload, NULL on fail.
  */
 void *find_fit(size_t asize, int idx) {
-  VERBOSE("find_fit: entering searchin in free list (%d)\n", idx);
   void *bp;
   void *freep = FREE_LISTP(heap_listp, idx);
   for (bp = GET_P(freep); bp != NULL; bp = (void *)GET_P(bp)) {
-    VERBOSE("find_fit: find a block with size (%d)\n", GET_SIZE(bp));
     if (GET_SIZE(HDRP(bp)) >= asize) {
       removeBlock(bp);
-      VERBOSE("find_fit: exiting with hit\n");
       return bp;
     }
   }
-  VERBOSE("find_fit: exiting\n");
   return NULL;
 }
 
@@ -372,6 +439,11 @@ void insertBlock(void *bp) {
   int idx = freeListIndex(size);
   void *freep = FREE_LISTP(heap_listp, idx);
 
+  if (verbose) {
+    checkValidHeapAddress(bp);
+    checkValidHeapAddress(freep);
+  }
+  VERBOSE("address valid\n");
   PUT(bp, (unsigned int)GET_P(freep));
   PUT(freep, (unsigned int)bp);
   PUT(PREVP(bp), 0);
@@ -380,6 +452,8 @@ void insertBlock(void *bp) {
   }
   VERBOSE("insertBlock: insert a free block of size (%zu) into free list (%d)\n",
           size, idx);
+
+  VERBOSE("free list valid\n");
   VERBOSE("insertBlock: exiting\n");
 }
 
@@ -394,7 +468,12 @@ void removeBlock(void *bp) {
 
   freep = FREE_LISTP(heap_listp, idx);
   prev_p = (GET_P(PREVP(bp)) == NULL) ? freep : GET_P(PREVP(bp));
+  if (verbose) {
+    checkValidHeapAddress(freep);
+    checkValidHeapAddress(prev_p);
+  }
   PUT(prev_p, (unsigned int)GET_P(bp));
+
   if (GET_P(bp) != NULL) {
     VERBOSE("removeBlock: next exsist\n");
     next_p = GET_P(bp);
@@ -404,40 +483,35 @@ void removeBlock(void *bp) {
 }
 
 int freeListIndex(size_t size) {
-  if (size <= 4) {
+  if (size <= 24)
     return 0;
-  } else if (size <= 8) {
+  if (size <= 32)
     return 1;
-  } else if (size <= 16) {
+  if (size <= 64)
     return 2;
-  } else if (size <= 32) {
+  if (size <= 80)
     return 3;
-  } else if (size <= 64) {
+  if (size <= 120)
     return 4;
-  } else if (size <= 128) {
+  if (size <= 240)
     return 5;
-  } else if (size <= 256) {
+  if (size <= 480)
     return 6;
-  } else if (size <= 512) {
+  if (size <= 960)
     return 7;
-  } else if (size <= 1024) {
+  if (size <= 1920)
     return 8;
-  } else if (size <= 2048) {
+  if (size <= 3840)
     return 9;
-  } else {
+  if (size <= 7680)
     return 10;
-  }
+  if (size <= 15360)
+    return 11;
+  if (size <= 30720)
+    return 12;
+
+  return 12;
 }
+
 
 /* test client */
-int main() {
-  mem_init();
-  mm_init();
-  char *p1, *p2, *p3;
-  p1 = mm_malloc(2047);
-  p2 = mm_malloc(20);
-  p3 = mm_malloc(2047);
-  mm_free(p2);
-
-  return 0;
-}
