@@ -40,7 +40,7 @@ team_t team = {
 #define DSIZE 8
 #define NFREELIST 13
 #define MIN_BLK_SIZE 16
-#define CHUNCKSIZE (1 << 5)
+#define CHUNCKSIZE (1 << 8)
 
 #define MAX(x, y) ((x) > (y)) ? (x) : (y)
 
@@ -187,13 +187,49 @@ void mm_free(void *ptr) {
 }
 /* &end mm_free */
 
+int reallocCoalesce(void *ptr, size_t asize) {
+  if (GET_ALLOC(HDRP(NEXT_BLKP(ptr)))) return 0;
+  size_t newsize = GET_SIZE(HDRP(ptr)) + GET_SIZE(HDRP(NEXT_BLKP(ptr)));
+  if ( newsize < asize ) {
+    return 0;
+  }
+  removeBlock(NEXT_BLKP(ptr));
+  PUT(HDRP(ptr), PACK(newsize, 0));
+  PUT(FTRP(ptr), PACK(newsize, 0));
+  place(ptr, asize);
+  return 1;
+}
+
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  */
 void *mm_realloc(void *ptr, size_t size) {
   void *oldptr = ptr;
   void *newptr;
-  size_t copySize;
+  size_t copySize, asize, oldBlkSize;
+  
+  asize = (size + 2 * DSIZE - 1) & ~0x7;
+  oldBlkSize = GET_SIZE(HDRP(ptr));
+  if (asize == oldBlkSize)
+    return ptr;
+  
+  if (asize < oldBlkSize) {
+    place(ptr, asize); /* inplace shrink */
+    return ptr;
+  }
+  
+  if (GET_ALLOC(HDRP(NEXT_BLKP(ptr))) && !GET_SIZE(HDRP(NEXT_BLKP(ptr)))) {
+    size_t extend_size = (asize - oldBlkSize) / WSIZE;
+    extend_heap(extend_size);
+    PUT(HDRP(ptr), PACK(extend_size*WSIZE + oldBlkSize, 0));
+    PUT(FTRP(ptr), PACK(extend_size*WSIZE + oldBlkSize, 0));
+    place(ptr, asize);
+    return ptr;
+  }
+
+  if (reallocCoalesce(ptr, asize)) {
+    return ptr;
+  }
 
   newptr = mm_malloc(size);
   if (newptr == NULL)
