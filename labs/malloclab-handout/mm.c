@@ -9,6 +9,7 @@
  * NOTE TO STUDENTS: Replace this header comment with your own header
  * comment that gives a high level description of your solution.
  */
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -71,6 +72,7 @@ team_t team = {
 
 /* &begin scalar declaration */
 static char *heap_listp;
+static char *block_listp;
 static int verbose = 1;
 static void *pre_bp;
 /* &end scalar declaration */
@@ -111,9 +113,13 @@ int mm_init(void) {
     return -1;
   }
   insertBlock(bp, CHUNCKSIZE);
-  printFreeList();
   pre_bp = NULL; /* Temporarily block */
+  block_listp = bp;
 
+  if (verbose) {
+    printHeap();
+    printFreeList();
+  }
   VERBOSE("mm_init: exiting\n");
   return 1;
 }
@@ -125,7 +131,7 @@ int mm_init(void) {
 void *mm_malloc(size_t size) {
   VERBOSE("mm_malloc: entering\n");
   size_t asize;
-  void *bp;
+  void *bp = NULL;
 
   if (size == 0) {
     printf("mm_malloc: invalid size (%zu)\n", size);
@@ -134,8 +140,8 @@ void *mm_malloc(size_t size) {
 
   asize = (size + 2 * DSIZE - 1) & ~0x7;
   int idx = freeListIndex(asize);
-  while (idx <= 10 && bp == NULL) { /* Search the free list */
-    if (idx == 10) {
+  while (idx <= 11 && bp == NULL) { /* Search the free list */
+    if (idx == 11) {
       size_t words = MAX(CHUNCKSIZE, asize) / WSIZE;
       if ((bp = extend_heap(words)) == (void *)-1) {
         return NULL;
@@ -145,6 +151,7 @@ void *mm_malloc(size_t size) {
     }
     idx += 1;
   }
+  VERBOSE("mm_malloc: find a suitable block in freelist (%d)\n", idx-1);
 
   place(bp, asize);
   VERBOSE("mm_malloc: alloc a size (%zu) block success\n", asize);
@@ -296,7 +303,7 @@ void *coalesce(void *bp) {
 void printHeap(void) {
   VERBOSE("printHeap: entering\n");
   void *bp;
-  for (bp = heap_listp; GET_SIZE(HDRP(bp)) != 0; bp = NEXT_BLKP(bp)) {
+  for (bp = block_listp; GET_SIZE(HDRP(bp)) != 0; bp = NEXT_BLKP(bp)) {
     printf("size=%d alloc=%d\n", GET_SIZE(HDRP(bp)), GET_ALLOC(HDRP(bp)));
   }
   VERBOSE("printHeap: exiting\n");
@@ -314,17 +321,16 @@ void printFreeList(void) {
 }
 
 void printOneChain(void *freep) {
-  VERBOSE("printOneChain: entering\n");
   void *bp = (void *)GET_P(freep);
   while (bp != NULL) {
     if (GET_ALLOC(HDRP(bp))) {
       printf("printOneChain: allocated block in free list\n");
       exit(0);
     }
-    printf("block size (%d)\n", GET_SIZE(HDRP(bp)));
+    printf("\tblock size (%d)\n", GET_SIZE(HDRP(bp)));
     bp = (void *)GET_P(bp);
   }
-  VERBOSE("printOneChain: exiting\n");
+  printf("\tNULL\n");
 }
 
 /*
@@ -332,15 +338,18 @@ void printOneChain(void *freep) {
  * RETURN: a (void *) pointer to the beginning of payload, NULL on fail.
  */
 void *find_fit(size_t asize, int idx) {
-  VERBOSE("find_fit: entering\n");
+  VERBOSE("find_fit: entering searchin in free list (%d)\n", idx);
   void *bp;
-  for (bp = FREE_LISTP(heap_listp, idx); bp != NULL; bp = (void *)GET_P(bp)) {
-    if (GET_SIZE(bp) >= asize) {
-      VERBOSE("find_fit: exiting with NULL\n");
+  void *freep = FREE_LISTP(heap_listp, idx);
+  for (bp = GET_P(freep); bp != NULL; bp = (void *)GET_P(bp)) {
+    VERBOSE("find_fit: find a block with size (%d)\n", GET_SIZE(bp));
+    if (GET_SIZE(HDRP(bp)) >= asize) {
+      removeBlock(freep, bp);
+      VERBOSE("find_fit: exiting with hit\n");
       return bp;
     }
   }
-  VERBOSE("find_fit: exiting with NULL\n");
+  VERBOSE("find_fit: exiting\n");
   return NULL;
 }
 
@@ -415,7 +424,9 @@ int freeListIndex(size_t size) {
 int main() {
   mem_init();
   mm_init();
-  removeBlock(FREE_LISTP(heap_listp, 10), GET_P(FREE_LISTP(heap_listp, 10)));
-  printFreeList();
+  mm_malloc(2047);
+  mm_malloc(20);
+  mm_malloc(2047);
+
   return 0;
 }
