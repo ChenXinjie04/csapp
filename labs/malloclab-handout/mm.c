@@ -358,15 +358,17 @@ void insertBlock(void *bp, size_t size) {
 
   PUT(bp, (unsigned int)GET_NEXTP(freep));
   PUT(freep, (unsigned int)bp);
-  PUT(PREVP(bp), (unsigned int)freep);
-  PUT(PREVP(GET_NEXTP(bp)), (unsigned int)bp);
+  PUT(PREVP(bp), 0);
+  if (GET_NEXTP(bp) != 0) {
+    PUT(PREVP(GET_NEXTP(bp)), (unsigned int)bp);
+  }
   VERBOSE("insertBlock: insert a free block of size (%zu) into free list (%d)\n",
           size, idx);
   VERBOSE("insertBlock: exiting\n");
 }
 
 /*
- * removeBlock - Remove a block from the free list.
+ * removeBlock - Remove a block by block pointer.
  * RETURN: a pointer to the payload.
  */
 void *removeBlock(void *freep) {
