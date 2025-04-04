@@ -39,7 +39,7 @@ team_t team = {
 #define ALIGNMENT 8
 #define WSIZE 4
 #define DSIZE 8
-#define CHUNCKSIZE (1 << 12)
+#define CHUNCKSIZE (1 << 5)
 
 #define MAX(x, y) ((x) > (y)) ? (x) : (y)
 
@@ -58,7 +58,7 @@ team_t team = {
 #define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
 
 #define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)))
-#define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE((unsigned *)(bp) - DSIZE))
+#define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE((char *)(bp) - DSIZE))
 
 #define VERBOSE(msg, ...) \
     {\
@@ -68,17 +68,16 @@ team_t team = {
 
 /* &begin scalar declaration */
 static char * heap_listp;
-static int verbose = 1;
+extern int verbose;
+static void *pre_bp;
 /* &end scalar declaration */
 
 /* &begin func declaration */
-static void *Mem_sbrk(int incr);
 static void *extend_heap(size_t words);
-static void *Extend_heap(size_t words);
 static void place(void *bp, size_t asize);
 static void printHeap(void);
 static void *find_fit(size_t asize);
-static void *Find_fit(size_t asize);
+static void *coalesce(void *);
 /* &end func declaration */
 
 /* 
@@ -87,14 +86,21 @@ static void *Find_fit(size_t asize);
 int mm_init(void)
 {
     VERBOSE("mm_init: entering\n");
-    heap_listp = Mem_sbrk(DSIZE);
+    if ((heap_listp = mem_sbrk(2*DSIZE)) == (void *)-1) {
+        printf("mm_init error\n");
+        exit(0);
+    }
     
-    PUT(heap_listp, PACK(0, 1));
-    PUT(heap_listp + 1, PACK(0, 1));
+    PUT(heap_listp, 0);
+    PUT(heap_listp + WSIZE, PACK(8, 1));
+    PUT(heap_listp + 2*WSIZE, PACK(8, 1));
+    PUT(heap_listp + 3*WSIZE, PACK(0, 1));
 
-    if ((heap_listp = extend_heap(CHUNCKSIZE/WSIZE)) == (void *)-1) {
+    if (extend_heap((1<<12)/WSIZE) == (void *)-1) {
         return -1;
     }
+    heap_listp += 2*DSIZE;
+    pre_bp = heap_listp;
 
     VERBOSE("mm_init: exiting\n");
     return 1;
@@ -110,26 +116,45 @@ void *mm_malloc(size_t size)
     size_t asize;
     void *bp;
 
-    if (size <= 0) {
-        printf("mm_malloc: invalid size (%u)\n", size);
+    if (size == 0) {
+        printf("mm_malloc: invalid size (%zu)\n", size);
         exit(0);
     }
     
     asize = (size + 2*DSIZE - 1) & ~0x7;
-    bp = Find_fit(asize);
+    if ((bp = find_fit(asize)) == NULL) {
+        size_t words = MAX(CHUNCKSIZE, asize) / WSIZE;
+        if ((bp = extend_heap(words)) == (void *)-1) {
+            return NULL;
+        }
+    }
 
     place(bp, asize);
-    VERBOSE("mm_malloc: alloc a size (%u) block success\n", asize);
+    VERBOSE("mm_malloc: alloc a size (%zu) block success\n", asize);
+    if (verbose) printHeap();
     VERBOSE("mm_malloc: exiting\n");
-    return NULL;
+    return bp;
 }
 
 /*
  * mm_free - Freeing a block does nothing.
  */
+/* &begin mm_free */
 void mm_free(void *ptr)
 {
+    VERBOSE("mm_free: entering\n");
+    size_t size;
+    
+    size = GET_SIZE(HDRP(ptr));
+
+    PUT(HDRP(ptr), PACK(size, 0));
+    PUT(FTRP(ptr), PACK(size, 0));
+    VERBOSE("mm_free: free block success\n");
+    coalesce(ptr);
+    if (verbose) printHeap();
+    VERBOSE("mm_free: exiting\n");
 }
+/* &end mm_free */
 
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
@@ -143,9 +168,10 @@ void *mm_realloc(void *ptr, size_t size)
     newptr = mm_malloc(size);
     if (newptr == NULL)
       return NULL;
-    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
-    if (size < copySize)
-      copySize = size;
+    copySize = GET_SIZE(HDRP(oldptr)) - 8;
+    size_t allocatedSize = GET_SIZE(HDRP(newptr)) - 8;
+    if (allocatedSize < copySize)
+      copySize = allocatedSize;
     memcpy(newptr, oldptr, copySize);
     mm_free(oldptr);
     return newptr;
@@ -156,16 +182,21 @@ void *mm_realloc(void *ptr, size_t size)
  * RETURN: a point to the start of newly allocated block.
  */
 static void *extend_heap(size_t words) {
+    VERBOSE("extend_heap: entering\n");
     char *bp;
     size_t size;
     
     size = (words % 2) ? (words+1)*WSIZE : words*WSIZE;
-    bp = Mem_sbrk(size);
+    if ((bp = mem_sbrk(size)) == (void *)-1) {
+        VERBOSE("extend_heap: no enough memory\n");
+        return NULL;
+    }
 
     PUT(HDRP(bp), PACK(size, 0));
     PUT(FTRP(bp), PACK(size, 0));
     PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));
 
+    VERBOSE("extend_heap: exiting\n");
     return bp;
 }
 
@@ -190,33 +221,67 @@ void place(void *bp, size_t asize) {
     return;
 }
 
+/*
+ * coalesce - Integrate neighbor free blocks.
+ * RETURN: void
+ */
+/* &begin coalesce */
+void* coalesce(void *bp) {
+    VERBOSE("coalesce: entering\n");
+    int prev_alloc, next_alloc;
+    size_t size;
+    
+    prev_alloc = GET_ALLOC(HDRP(PREV_BLKP(bp)));
+    next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
+    size = GET_SIZE(HDRP(bp));
+    
+    if (prev_alloc && next_alloc) {
+        VERBOSE("coalesce: hit cond 1\n");
+        return bp;
+    }
+    
+    else if (prev_alloc && !next_alloc) {
+        VERBOSE("coalesce: hit cond 2\n");
+        size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        PUT(HDRP(bp), PACK(size, 0));
+        PUT(FTRP(bp), PACK(size, 0));
+    }
+    
+    else if (!prev_alloc && next_alloc) {
+        VERBOSE("coalesce: hit cond 3\n");
+        bp = PREV_BLKP(bp);
+        size += GET_SIZE(HDRP(bp));
+        PUT(HDRP(bp), PACK(size, 0));
+        PUT(FTRP(bp), PACK(size, 0));
+    }
+    
+    else if (!prev_alloc && !next_alloc) {
+        VERBOSE("coalesce: hit cond 4\n");
+        size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        bp = PREV_BLKP(bp);
+        PUT(HDRP(bp), PACK(size, 0));
+        PUT(FTRP(bp), PACK(size, 0));
+    }
+    
+    VERBOSE("coalesce: exiting\n");
+    return bp;
+}
+/* &end coalesce */
+
 /*************************
  * Mem function wrappers
  *************************/
-
-void *Mem_sbrk(int incr) { return mem_sbrk(incr); }
-
-/*
- * Find_fit - A wrapper of find_fit, if find_fit fail it will extend heap;
- * RETURN: void.
- */
-void *Find_fit(size_t asize) {
-    void *rc;
-    if ((rc = find_fit(asize)) == NULL) {
-        size_t words = MAX(CHUNCKSIZE, asize) / WSIZE;
-        return extend_heap(words);
-    }
-    return rc;
-}
 
 /*****************************
  * Mem check function
  *****************************/
 void printHeap(void) {
+    VERBOSE("printHeap: entering\n");
     void *bp;
     for (bp = heap_listp; GET_SIZE(HDRP(bp)) != 0; bp = NEXT_BLKP(bp)) {
         printf("size=%d alloc=%d\n", GET_SIZE(HDRP(bp)), GET_ALLOC(HDRP(bp)));
     }
+    VERBOSE("printHeap: exiting\n");
     return;
 }
 
@@ -225,28 +290,27 @@ void printHeap(void) {
  * RETURN: a (void *) pointer to the beginning of payload, NULL on fail.
  */
 void *find_fit(size_t asize) {
+    VERBOSE("find_fit: entering\n");
     void *bp;
 
     for (bp = heap_listp; GET_SIZE(HDRP(bp)) != 0; bp = NEXT_BLKP(bp)) {
         if (!GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= asize) {
+            VERBOSE("find_fit: exiting\n");
             return bp;
         }
     }
+    
+    // for (bp = heap_listp; bp != pre_bp; bp = NEXT_BLKP(bp)) {
+    //     if (!GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= asize) {
+    //         VERBOSE("find_fit: exiting\n");
+    //         pre_bp = bp;
+    //         return bp;
+    //     }
+    // }
 
+    VERBOSE("find_fit: exiting with NULL\n");
     return NULL;
 }
 
 
 /* test client */
-int main() {
-    mem_init();
-    mm_init();
-    printHeap();
-    mm_malloc(10);
-    printHeap();
-    mm_malloc(5);
-    printHeap();
-    mm_malloc(17);
-    printHeap();
-    return 0;
-}
