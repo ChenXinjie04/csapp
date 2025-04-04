@@ -53,7 +53,7 @@ team_t team = {
 
 #define GET_SIZE(p) (*(unsigned int *)(p) & ~0x7)
 #define GET_ALLOC(p) (*(unsigned int *)(p) & 0x1)
-#define GET_NEXTP(p) (*(unsigned int *)(p))
+#define GET_P(p) ((void *)(*(unsigned *)(p)))
 
 #define HDRP(bp) ((char *)(bp) - WSIZE)
 #define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
@@ -82,6 +82,7 @@ static void printHeap(void);
 static void *find_fit(size_t asize, int idx);
 static void *coalesce(void *);
 static void insertBlock(void *, size_t);
+static void removeBlock(void *, void *);
 static int freeListIndex(size_t);
 static void printFreeList(void);
 static void printOneChain(void *);
@@ -314,14 +315,14 @@ void printFreeList(void) {
 
 void printOneChain(void *freep) {
   VERBOSE("printOneChain: entering\n");
-  void *bp = (void *)GET_NEXTP(freep);
+  void *bp = (void *)GET_P(freep);
   while (bp != NULL) {
     if (GET_ALLOC(HDRP(bp))) {
       printf("printOneChain: allocated block in free list\n");
       exit(0);
     }
     printf("block size (%d)\n", GET_SIZE(HDRP(bp)));
-    bp = (void *)GET_NEXTP(bp);
+    bp = (void *)GET_P(bp);
   }
   VERBOSE("printOneChain: exiting\n");
 }
@@ -333,7 +334,7 @@ void printOneChain(void *freep) {
 void *find_fit(size_t asize, int idx) {
   VERBOSE("find_fit: entering\n");
   void *bp;
-  for (bp = FREE_LISTP(heap_listp, idx); bp != NULL; bp = (void *)GET_NEXTP(bp)) {
+  for (bp = FREE_LISTP(heap_listp, idx); bp != NULL; bp = (void *)GET_P(bp)) {
     if (GET_SIZE(bp) >= asize) {
       VERBOSE("find_fit: exiting with NULL\n");
       return bp;
@@ -356,11 +357,11 @@ void insertBlock(void *bp, size_t size) {
   int idx = freeListIndex(size);
   void *freep = FREE_LISTP(heap_listp, idx);
 
-  PUT(bp, (unsigned int)GET_NEXTP(freep));
+  PUT(bp, (unsigned int)GET_P(freep));
   PUT(freep, (unsigned int)bp);
   PUT(PREVP(bp), 0);
-  if (GET_NEXTP(bp) != 0) {
-    PUT(PREVP(GET_NEXTP(bp)), (unsigned int)bp);
+  if (GET_P(bp) != 0) {
+    PUT(PREVP(GET_P(bp)), (unsigned int)bp);
   }
   VERBOSE("insertBlock: insert a free block of size (%zu) into free list (%d)\n",
           size, idx);
@@ -371,12 +372,17 @@ void insertBlock(void *bp, size_t size) {
  * removeBlock - Remove a block by block pointer.
  * RETURN: a pointer to the payload.
  */
-void *removeBlock(void *freep) {
-  void *rc = (void *)GET_NEXTP(freep);
-  if (rc == NULL) return NULL;
-  void *next_rc = (void *)GET_NEXTP(rc);
-  PUT(freep, (unsigned int)next_rc);
-  return rc;
+void removeBlock(void *freep, void *bp) {
+  VERBOSE("removeBlock: entering\n");
+  void *prev_p, *next_p;
+  prev_p = (GET_P(PREVP(bp)) == NULL) ? freep : GET_P(PREVP(bp));
+  PUT(prev_p, (unsigned int)GET_P(bp));
+  if (GET_P(bp) != NULL) {
+    VERBOSE("removeBlock: next exsist\n");
+    next_p = GET_P(bp);
+    PUT(PREVP(next_p), (unsigned int)GET_P(PREVP(bp)));
+  }
+  VERBOSE("removeBlock: exiting\n");
 }
 
 int freeListIndex(size_t size) {
@@ -409,5 +415,7 @@ int freeListIndex(size_t size) {
 int main() {
   mem_init();
   mm_init();
+  removeBlock(FREE_LISTP(heap_listp, 10), GET_P(FREE_LISTP(heap_listp, 10)));
+  printFreeList();
   return 0;
 }
