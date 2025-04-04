@@ -83,8 +83,8 @@ static void place(void *bp, size_t asize);
 static void printHeap(void);
 static void *find_fit(size_t asize, int idx);
 static void *coalesce(void *);
-static void insertBlock(void *, size_t);
-static void removeBlock(void *, void *);
+static void insertBlock(void *);
+static void removeBlock(void *);
 static int freeListIndex(size_t);
 static void printFreeList(void);
 static void printOneChain(void *);
@@ -112,7 +112,7 @@ int mm_init(void) {
   if ((bp = extend_heap(CHUNCKSIZE / WSIZE)) == (void *)-1) {
     return -1;
   }
-  insertBlock(bp, CHUNCKSIZE);
+  insertBlock(bp);
   pre_bp = NULL; /* Temporarily block */
   block_listp = bp;
 
@@ -237,7 +237,7 @@ void place(void *bp, size_t asize) {
     bp = NEXT_BLKP(bp);
     PUT(HDRP(bp), PACK(size - asize, 0));
     PUT(FTRP(bp), PACK(size - asize, 0));
-    insertBlock(bp, size - asize);
+    insertBlock(bp);
   } else {
     PUT(HDRP(bp), PACK(size, 1));
     PUT(FTRP(bp), PACK(size, 1));
@@ -253,8 +253,9 @@ void place(void *bp, size_t asize) {
 /* &begin coalesce */
 void *coalesce(void *bp) {
   VERBOSE("coalesce: entering\n");
-  int prev_alloc, next_alloc;
+  int prev_alloc, next_alloc, idx;
   size_t size;
+  void *next_bp;
 
   prev_alloc = GET_ALLOC(HDRP(PREV_BLKP(bp)));
   next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
@@ -268,22 +269,30 @@ void *coalesce(void *bp) {
   else if (prev_alloc && !next_alloc) {
     VERBOSE("coalesce: hit cond 2\n");
     size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
+    next_bp = NEXT_BLKP(bp);
+    removeBlock(next_bp);
     PUT(HDRP(bp), PACK(size, 0));
     PUT(FTRP(bp), PACK(size, 0));
+    insertBlock(bp);
   }
 
   else if (!prev_alloc && next_alloc) {
     VERBOSE("coalesce: hit cond 3\n");
     bp = PREV_BLKP(bp);
+    removeBlock(bp);
     size += GET_SIZE(HDRP(bp));
     PUT(HDRP(bp), PACK(size, 0));
     PUT(FTRP(bp), PACK(size, 0));
+    insertBlock(bp);
   }
 
   else if (!prev_alloc && !next_alloc) {
     VERBOSE("coalesce: hit cond 4\n");
+    next_bp = NEXT_BLKP(bp);
+    removeBlock(next_bp);
     size += GET_SIZE(HDRP(PREV_BLKP(bp))) + GET_SIZE(HDRP(NEXT_BLKP(bp)));
     bp = PREV_BLKP(bp);
+    removeBlock(bp);
     PUT(HDRP(bp), PACK(size, 0));
     PUT(FTRP(bp), PACK(size, 0));
   }
@@ -344,7 +353,7 @@ void *find_fit(size_t asize, int idx) {
   for (bp = GET_P(freep); bp != NULL; bp = (void *)GET_P(bp)) {
     VERBOSE("find_fit: find a block with size (%d)\n", GET_SIZE(bp));
     if (GET_SIZE(HDRP(bp)) >= asize) {
-      removeBlock(freep, bp);
+      removeBlock(bp);
       VERBOSE("find_fit: exiting with hit\n");
       return bp;
     }
@@ -357,12 +366,9 @@ void *find_fit(size_t asize, int idx) {
  * insertBlock - Insert a block of size bytes into corresponding free list.
  * RETURN: void.
  */
-void insertBlock(void *bp, size_t size) {
+void insertBlock(void *bp) {
   VERBOSE("insertBlock: entering\n");
-  if (size < 4) {
-    printf("too small\n");
-    exit(0);
-  }
+  size_t size = GET_SIZE(HDRP(bp));
   int idx = freeListIndex(size);
   void *freep = FREE_LISTP(heap_listp, idx);
 
@@ -381,9 +387,12 @@ void insertBlock(void *bp, size_t size) {
  * removeBlock - Remove a block by block pointer.
  * RETURN: a pointer to the payload.
  */
-void removeBlock(void *freep, void *bp) {
+void removeBlock(void *bp) {
   VERBOSE("removeBlock: entering\n");
-  void *prev_p, *next_p;
+  void *prev_p, *next_p, *freep;
+  int idx = freeListIndex(GET_SIZE(HDRP(bp)));
+
+  freep = FREE_LISTP(heap_listp, idx);
   prev_p = (GET_P(PREVP(bp)) == NULL) ? freep : GET_P(PREVP(bp));
   PUT(prev_p, (unsigned int)GET_P(bp));
   if (GET_P(bp) != NULL) {
@@ -424,9 +433,11 @@ int freeListIndex(size_t size) {
 int main() {
   mem_init();
   mm_init();
-  mm_malloc(2047);
-  mm_malloc(20);
-  mm_malloc(2047);
+  char *p1, *p2, *p3;
+  p1 = mm_malloc(2047);
+  p2 = mm_malloc(20);
+  p3 = mm_malloc(2047);
+  mm_free(p2);
 
   return 0;
 }
