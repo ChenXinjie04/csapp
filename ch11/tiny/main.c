@@ -3,6 +3,7 @@
  * GET method to serve static and dynamic content.
  */
 #include "csapp.h"
+#include <_stdlib.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
@@ -18,9 +19,9 @@ static int verbose = 1;
 void doit(int fd);
 void read_requesthdrs(rio_t *rp);
 int parse_uri(char *uri, char *filename, char *cgiargs);
-void serve_static(int fd, char *filename, int filesize);
+void serve_static(int fd, char *filename, int filesize, int only_head);
 void get_filetype(char *filename, char *filetype);
-void serve_dynamic(int fd, char *filename, char *cgiargs);
+void serve_dynamic(int fd, char *filename, char *cgiargs, int only_head);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 void sigchldHandler(int sig);
 
@@ -53,7 +54,7 @@ int main(int argc, char *argv[]) {
 
 void doit(int fd) {
   VERBOSE("doit: entering\n");
-  int is_static;
+  int is_static, only_head = 0;
   struct stat sbuf;
   char buf[MAXLINE], uri[MAXLINE], method[MAXLINE], version[MAXLINE];
   char filename[MAXLINE], cgiargs[MAXLINE];
@@ -65,12 +66,13 @@ void doit(int fd) {
   printf("Request headers:\n");
   printf("%s", buf);
   sscanf(buf, "%s %s %s", method, uri, version);
-  if (strcasecmp(method, "GET")) {
+  if (strcasecmp(method, "GET") && strcasecmp(method, "HEAD")) {
     clienterror(fd, method, "501", "Not implemented",
         "Tiny does not implement this method");
     return;
   }
   read_requesthdrs(&rio);
+  only_head = !strcmp(method, "HEAD");
   
   /* Parse URI from GET request */
   is_static = parse_uri(uri, filename, cgiargs);
@@ -86,14 +88,14 @@ void doit(int fd) {
       clienterror(fd, filename, "403", 
         "Forbidden", "Tiny couldn't read the file");
     }
-    serve_static(fd, filename, sbuf.st_size);
+    serve_static(fd, filename, sbuf.st_size, only_head);
   }
   else {
     if (!S_ISREG(sbuf.st_mode) || !(S_IXUSR & sbuf.st_mode)) {
       clienterror(fd, filename, "403",
                 "Forbidden", "Tiny couldn't run the CGI program");
     }
-    serve_dynamic(fd, filename, cgiargs);
+    serve_dynamic(fd, filename, cgiargs, only_head);
   }
   VERBOSE("doit: exiting\n");
 }
@@ -164,7 +166,7 @@ int parse_uri(char *uri, char *filename, char *cgiargs) {
   }
 }
 
-void serve_static(int fd, char *filename, int filesize) {
+void serve_static(int fd, char *filename, int filesize, int only_head) {
   VERBOSE("serve_static: entering\n");
   int srcfd;
   char *srcp, filetype[MAXLINE], buf[MAXBUF];
@@ -180,11 +182,13 @@ void serve_static(int fd, char *filename, int filesize) {
   printf("Response headers:\n");
   printf("%s", buf);
   
-  srcfd = open(filename, O_RDONLY, 0);
-  srcp = malloc(filesize);
-  Rio_readn(srcfd, srcp, filesize);
-  Rio_writen(fd, srcp, filesize);
-  free(srcp);
+  if (!only_head) {
+    srcfd = open(filename, O_RDONLY, 0);
+    srcp = malloc(filesize);
+    Rio_readn(srcfd, srcp, filesize);
+    Rio_writen(fd, srcp, filesize);
+    free(srcp);
+  }
   VERBOSE("serve_static: exiting\n");
 }
 
@@ -210,7 +214,7 @@ void get_filetype(char *filename, char *filetype) {
 /*
  * serve_dynamic - serve_dynamic content
  */
-void serve_dynamic(int fd, char *filename, char *cgiargs) {
+void serve_dynamic(int fd, char *filename, char *cgiargs, int only_head) {
   VERBOSE("serve_dynamic: entering\n");
   char buf[MAXLINE], *emptylist[] = { NULL };
   
@@ -222,6 +226,11 @@ void serve_dynamic(int fd, char *filename, char *cgiargs) {
   
   if (Fork() == 0) {
     setenv("QUERY_STRING", cgiargs, 1);
+    if (only_head) {
+      setenv("REQUEST_METHOD", "HEAD", 1);
+    } else {
+      setenv("REQUEST_METHOD", "GET", 1);
+    }
     Dup2(fd, STDOUT_FILENO);
     Execve(filename, emptylist, environ);
   }
