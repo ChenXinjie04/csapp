@@ -1,0 +1,46 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.8	//
+ALIGN	mm.c	/^#define ALIGN(/;"	d	file:
+ALIGNMENT	mm.c	/^#define ALIGNMENT /;"	d	file:
+CHUNCKSIZE	mm.c	/^#define CHUNCKSIZE /;"	d	file:
+DSIZE	mm.c	/^#define DSIZE /;"	d	file:
+FREE_LISTP	mm.c	/^#define FREE_LISTP(/;"	d	file:
+FTRP	mm.c	/^#define FTRP(/;"	d	file:
+GET_ALLOC	mm.c	/^#define GET_ALLOC(/;"	d	file:
+GET_NEXTP	mm.c	/^#define GET_NEXTP(/;"	d	file:
+GET_SIZE	mm.c	/^#define GET_SIZE(/;"	d	file:
+HDRP	mm.c	/^#define HDRP(/;"	d	file:
+MAX	mm.c	/^#define MAX(/;"	d	file:
+MIN_BLK_SIZE	mm.c	/^#define MIN_BLK_SIZE /;"	d	file:
+NEXT_BLKP	mm.c	/^#define NEXT_BLKP(/;"	d	file:
+NFREELIST	mm.c	/^#define NFREELIST /;"	d	file:
+PACK	mm.c	/^#define PACK(/;"	d	file:
+PREVP	mm.c	/^#define PREVP(/;"	d	file:
+PREV_BLKP	mm.c	/^#define PREV_BLKP(/;"	d	file:
+PUT	mm.c	/^#define PUT(/;"	d	file:
+SIZE_T_SIZE	mm.c	/^#define SIZE_T_SIZE /;"	d	file:
+VERBOSE	mm.c	/^#define VERBOSE(/;"	d	file:
+WSIZE	mm.c	/^#define WSIZE /;"	d	file:
+coalesce	mm.c	/^void *coalesce(void *bp) {$/;"	f
+extend_heap	mm.c	/^static void *extend_heap(size_t words) {$/;"	f	file:
+find_fit	mm.c	/^void *find_fit(size_t asize, int idx) {$/;"	f
+freeListIndex	mm.c	/^int freeListIndex(size_t size) {$/;"	f
+heap_listp	mm.c	/^static char *heap_listp;$/;"	v	file:
+insertBlock	mm.c	/^void insertBlock(void *bp, size_t size) {$/;"	f
+main	mm.c	/^int main() {$/;"	f
+mm_free	mm.c	/^void mm_free(void *ptr) {$/;"	f
+mm_init	mm.c	/^int mm_init(void) {$/;"	f
+mm_malloc	mm.c	/^void *mm_malloc(size_t size) {$/;"	f
+mm_realloc	mm.c	/^void *mm_realloc(void *ptr, size_t size) {$/;"	f
+place	mm.c	/^void place(void *bp, size_t asize) {$/;"	f
+pre_bp	mm.c	/^static void *pre_bp;$/;"	v	file:
+printFreeList	mm.c	/^void printFreeList(void) {$/;"	f
+printHeap	mm.c	/^void printHeap(void) {$/;"	f
+printOneChain	mm.c	/^void printOneChain(void *freep) {$/;"	f
+removeBlock	mm.c	/^void *removeBlock(void *freep) {$/;"	f
+team	mm.c	/^team_t team = {$/;"	v
+verbose	mm.c	/^static int verbose = 1;$/;"	v	file:

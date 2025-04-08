@@ -127,6 +127,11 @@ void Setpgid(pid_t pid, pid_t pgid) {
 
 pid_t Getpgrp(void) { return getpgrp(); }
 
+void Execve(const char *filename, char *const argv[], char *const envp[]) {
+  if (execve(filename, argv, envp) < 0)
+    unix_error("Execve error");
+}
+
 /************************************
  * Wrappers for Unix signal functions
  ************************************/
@@ -291,6 +296,23 @@ void Close(int fd) {
   }
 }
 
+int Dup2(int fd1, int fd2) {
+  int rc;
+
+  if ((rc = dup2(fd1, fd2)) < 0)
+    unix_error("Dup2 error");
+  return rc;
+}
+
+int Select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
+           struct timeval *timeout) {
+  int rc;
+
+  if ((rc = select(n, readfds, writefds, exceptfds, timeout)) < 0)
+    unix_error("Select error");
+  return rc;
+}
+
 /***************************
  * Socket interface wrappers
  ***************************/
@@ -349,7 +371,7 @@ ssize_t rio_readn(int fd, void *usrbuf, size_t n) {
 }
 
 ssize_t rio_writen(int fd, void *usrbuf, size_t n) {
-  if (n > sizeof usrbuf) {
+  if (n >= MAXBUF) {
     printf("riowriten: n exceed buf size\n");
     exit(0);
   }
@@ -586,3 +608,19 @@ int Open_listenfd(char *port) {
   return rc;
 }
 
+/************************************
+ * Wrappers for memory mmap functions
+ ************************************/
+void *Mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset) {
+  void *ptr;
+  
+  if ((ptr = mmap(addr, len, prot, flags, fd, offset)) == (void *)-1) {
+    unix_error("mmap error");
+  }
+  return ptr;
+}
+
+void Munmap(void *start, size_t length) {
+  if (munmap(start, length) < 0)
+    unix_error("munmap error");
+}

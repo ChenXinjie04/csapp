@@ -304,15 +304,6 @@ int Dup2(int fd1, int fd2) {
   return rc;
 }
 
-int Select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
-           struct timeval *timeout) {
-  int rc;
-
-  if ((rc = select(n, readfds, writefds, exceptfds, timeout)) < 0)
-    unix_error("Select error");
-  return rc;
-}
-
 /***************************
  * Socket interface wrappers
  ***************************/
@@ -371,7 +362,7 @@ ssize_t rio_readn(int fd, void *usrbuf, size_t n) {
 }
 
 ssize_t rio_writen(int fd, void *usrbuf, size_t n) {
-  if (n >= MAXBUF) {
+  if (n > sizeof usrbuf) {
     printf("riowriten: n exceed buf size\n");
     exit(0);
   }
