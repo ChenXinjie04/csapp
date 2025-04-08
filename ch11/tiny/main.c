@@ -17,7 +17,7 @@
 static int verbose = 1;
 
 void doit(int fd);
-void read_requesthdrs(rio_t *rp);
+int read_requesthdrs(rio_t *rp, char *method);
 int parse_uri(char *uri, char *filename, char *cgiargs);
 void serve_static(int fd, char *filename, int filesize, int only_head);
 void get_filetype(char *filename, char *filetype);
@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
 
 void doit(int fd) {
   VERBOSE("doit: entering\n");
-  int is_static, only_head = 0;
+  int is_static, only_head = 0, n;
   struct stat sbuf;
   char buf[MAXLINE], uri[MAXLINE], method[MAXLINE], version[MAXLINE];
   char filename[MAXLINE], cgiargs[MAXLINE];
@@ -66,16 +66,21 @@ void doit(int fd) {
   printf("Request headers:\n");
   printf("%s", buf);
   sscanf(buf, "%s %s %s", method, uri, version);
-  if (strcasecmp(method, "GET") && strcasecmp(method, "HEAD")) {
+  if (strcasecmp(method, "GET") && strcasecmp(method, "HEAD") && strcasecmp(method, "POST")) {
     clienterror(fd, method, "501", "Not implemented",
         "Tiny does not implement this method");
     return;
   }
-  read_requesthdrs(&rio);
+  is_static = parse_uri(uri, filename, cgiargs);
+
+  n = read_requesthdrs(&rio, method);
+  if (!strcmp("POST", method)) {
+    Rio_readnb(&rio, cgiargs, n);
+  }
   only_head = !strcmp(method, "HEAD");
+  VERBOSE("doit: cgiargs=%s", cgiargs);
   
   /* Parse URI from GET request */
-  is_static = parse_uri(uri, filename, cgiargs);
   if (stat(filename, &sbuf) < 0) {
     clienterror(fd, filename, "404", "Not found",
                 "Tiny couldn't find this file");
@@ -123,17 +128,22 @@ void clienterror(int fd, char *cause, char *errnum,
   VERBOSE("clienterror: exiting\n");
 }
 
-void read_requesthdrs(rio_t *rp) {
-  VERBOSE("read_requesthdrs: entering\n");
+int read_requesthdrs(rio_t *rp, char *method) {
+  VERBOSE("read_requesthdrs: entering method=%s\n", method);
   char buf[MAXLINE];
+  int n = 0;
   
   Rio_readlineb(rp, buf, MAXLINE);
   while (strcmp(buf, "\r\n")) {
     Rio_readlineb(rp, buf, MAXLINE);
+    if (!strcmp(method, "POST") && strstr(buf, "Content-Length")) {
+      VERBOSE("hit Content-Length\n");
+      sscanf(buf, "Content-Length: %d", &n);
+    }
     printf("%s", buf);
   }
   VERBOSE("read_requesthdrs: exiting\n");
-  return;
+  return n;
 }
 
 int parse_uri(char *uri, char *filename, char *cgiargs) {
