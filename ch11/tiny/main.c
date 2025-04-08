@@ -7,6 +7,14 @@
 #include <sys/mman.h>
 #include <sys/socket.h>
 
+#define VERBOSE(msg, ...) \
+  { \
+    if (verbose) \
+      printf(msg, ##__VA_ARGS__); \
+  } \
+  
+static int verbose = 1;
+
 void doit(int fd);
 void read_requesthdrs(rio_t *rp);
 int parse_uri(char *uri, char *filename, char *cgiargs);
@@ -14,6 +22,7 @@ void serve_static(int fd, char *filename, int filesize);
 void get_filetype(char *filename, char *filetype);
 void serve_dynamic(int fd, char *filename, char *cgiargs);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
+void sigchldHandler(int sig);
 
 int main(int argc, char *argv[]) {
   int listenfd, connfd;
@@ -26,18 +35,24 @@ int main(int argc, char *argv[]) {
     exit(0);
   }
   
+  Signal(SIGCHLD, sigchldHandler);
+
   listenfd = Open_listenfd(argv[1]);
   while (1) {
     clientlen = sizeof(struct sockaddr_storage);
     connfd = Accept(listenfd, (struct sockaddr *)&clientaddr, &clientlen);
     Getnameinfo((struct sockaddr *)&clientaddr, clientlen, 
         hostname, MAXLINE, port, MAXLINE, 0);
+    printf("Accepted connetion from (%s, %s)\n", hostname, port);
+    doit(connfd);
+    Close(connfd);
   }
 
   return 0;
 }
 
 void doit(int fd) {
+  VERBOSE("doit: entering\n");
   int is_static;
   struct stat sbuf;
   char buf[MAXLINE], uri[MAXLINE], method[MAXLINE], version[MAXLINE];
@@ -50,7 +65,7 @@ void doit(int fd) {
   printf("Request headers:\n");
   printf("%s", buf);
   sscanf(buf, "%s %s %s", method, uri, version);
-  if (strcasecmp(buf, "GET")) {
+  if (strcasecmp(method, "GET")) {
     clienterror(fd, method, "501", "Not implemented",
         "Tiny does not implement this method");
     return;
@@ -64,6 +79,7 @@ void doit(int fd) {
                 "Tiny couldn't find this file");
     return;
   }
+  VERBOSE("doit: is_static=%d filename=%s\n", is_static, filename);
 
   if (is_static) {
     if (!S_ISREG(sbuf.st_mode) || !(S_IRUSR & sbuf.st_mode)) {
@@ -79,10 +95,12 @@ void doit(int fd) {
     }
     serve_dynamic(fd, filename, cgiargs);
   }
+  VERBOSE("doit: exiting\n");
 }
 
 void clienterror(int fd, char *cause, char *errnum,
                 char *shortmsg, char *longmsg) {
+  VERBOSE("clienterror: entering\n");
   char buf[MAXLINE], body[MAXLINE];
   
   /* Build the HTTP response body */
@@ -90,7 +108,7 @@ void clienterror(int fd, char *cause, char *errnum,
   sprintf(body, "%s<body bgcolor=""ffffff"">\r\n", body);
   sprintf(body, "%s%s: %s\r\n", body, errnum, shortmsg);
   sprintf(body, "%s<p>%s: %s\r\n", body, longmsg, cause);
-  sprintf(body, "%s<hr><em>The Tiny web server</em>\r\n");
+  sprintf(body, "%s<hr><em>The Tiny web server</em>\r\n", body);
   
   /* Print the HTTP response */
   sprintf(buf, "HTTP/1.0 %s %s\r\n", errnum, shortmsg);
@@ -100,30 +118,37 @@ void clienterror(int fd, char *cause, char *errnum,
   sprintf(buf, "Content-length: %d\r\n\r\n", (int)strlen(body));
   Rio_writen(fd, buf, strlen(buf));
   Rio_writen(fd, body, strlen(body));
+  VERBOSE("clienterror: exiting\n");
 }
 
 void read_requesthdrs(rio_t *rp) {
+  VERBOSE("read_requesthdrs: entering\n");
   char buf[MAXLINE];
   
   Rio_readlineb(rp, buf, MAXLINE);
   while (strcmp(buf, "\r\n")) {
     Rio_readlineb(rp, buf, MAXLINE);
-    printf("%s\n", buf);
+    printf("%s", buf);
   }
+  VERBOSE("read_requesthdrs: exiting\n");
   return;
 }
 
 int parse_uri(char *uri, char *filename, char *cgiargs) {
+  VERBOSE("parse_uri: entering\n");
 
   if (!strstr(uri, "cgi-bin")) {
+    VERBOSE("parse_uri: static content\n")
     strcpy(cgiargs, "");
     strcpy(filename, ".");
     strcat(filename, uri);
-    if (uri[strlen(uri)-1] == '/') {
-      strcat(uri, "home.html");
+    if (filename[strlen(filename)-1] == '/') {
+      strcat(filename, "home.html");
     }
+    VERBOSE("parse_uri: exiting\n");
     return 1;
   } else {
+    VERBOSE("parse_uri: dynamic content\n");
     char *ptr;
     ptr = index(uri, '?');
     if (ptr) {
@@ -134,11 +159,13 @@ int parse_uri(char *uri, char *filename, char *cgiargs) {
     }
     strcpy(filename, ".");
     strcat(filename, uri);
+    VERBOSE("parse_uri: exiting\n");
     return 0;
   }
 }
 
 void serve_static(int fd, char *filename, int filesize) {
+  VERBOSE("serve_static: entering\n");
   int srcfd;
   char *srcp, filetype[MAXLINE], buf[MAXBUF];
   
@@ -154,9 +181,11 @@ void serve_static(int fd, char *filename, int filesize) {
   printf("%s", buf);
   
   srcfd = open(filename, O_RDONLY, 0);
-  srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
+  srcp = malloc(filesize);
+  Rio_readn(srcfd, srcp, filesize);
   Rio_writen(fd, srcp, filesize);
-  Munmap(srcp, filesize);
+  free(srcp);
+  VERBOSE("serve_static: exiting\n");
 }
 
 /*
@@ -171,6 +200,8 @@ void get_filetype(char *filename, char *filetype) {
     strcpy(filetype, "image/png");
   } else if (strstr(filename, ".jpg")) {
     strcpy(filetype, "image/jpg");
+  } else if (strstr(filename, ".mpg")) {
+    strcpy(filetype, "video/mpg");
   } else {
     strcpy(filetype, "text/plain");
   }
@@ -180,6 +211,7 @@ void get_filetype(char *filename, char *filetype) {
  * serve_dynamic - serve_dynamic content
  */
 void serve_dynamic(int fd, char *filename, char *cgiargs) {
+  VERBOSE("serve_dynamic: entering\n");
   char buf[MAXLINE], *emptylist[] = { NULL };
   
   /* Return first part of HTTP response */
@@ -190,8 +222,14 @@ void serve_dynamic(int fd, char *filename, char *cgiargs) {
   
   if (Fork() == 0) {
     setenv("QUERY_STRING", cgiargs, 1);
-    dup2(fd, STDOUT_FILENO);
-    execve(filename, emptylist, environ);
+    Dup2(fd, STDOUT_FILENO);
+    Execve(filename, emptylist, environ);
   }
-  Wait(NULL);
+}
+
+void sigchldHandler(int sig) {
+  while (waitpid(-1, NULL, 0)  > 0) {
+    printf("reap child\n");
+  }
+  return;
 }
