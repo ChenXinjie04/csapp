@@ -5,7 +5,9 @@
 #include "csapp.h"
 #include <_stdlib.h>
 #include <fcntl.h>
+#include <setjmp.h>
 #include <sys/mman.h>
+#include <sys/signal.h>
 #include <sys/socket.h>
 
 #define VERBOSE(msg, ...) \
@@ -24,6 +26,7 @@ void get_filetype(char *filename, char *filetype);
 void serve_dynamic(int fd, char *filename, char *cgiargs, int only_head);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 void sigchldHandler(int sig);
+void sigpipeHandler(int sig);
 
 int main(int argc, char *argv[]) {
   int listenfd, connfd;
@@ -37,6 +40,7 @@ int main(int argc, char *argv[]) {
   }
   
   Signal(SIGCHLD, sigchldHandler);
+  Signal(SIGPIPE, sigpipeHandler);
 
   listenfd = Open_listenfd(argv[1]);
   while (1) {
@@ -181,23 +185,26 @@ void serve_static(int fd, char *filename, int filesize, int only_head) {
   int srcfd;
   char *srcp, filetype[MAXLINE], buf[MAXBUF];
   
-  /* Send response head to client */
-  get_filetype(filename, filetype);
-  sprintf(buf, "HTTP/1.0 200 OK\r\n");
-  sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
-  sprintf(buf, "%sConnection: close\r\n", buf);
-  sprintf(buf, "%sContent-length: %d\r\n", buf, filesize);
-  sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype);
-  Rio_writen(fd, buf, strlen(buf));
-  printf("Response headers:\n");
-  printf("%s", buf);
-  
-  if (!only_head) {
-    srcfd = open(filename, O_RDONLY, 0);
-    srcp = malloc(filesize);
-    Rio_readn(srcfd, srcp, filesize);
-    Rio_writen(fd, srcp, filesize);
-    free(srcp);
+  if (Fork() == 0) {
+    /* Send response head to client */
+    get_filetype(filename, filetype);
+    sprintf(buf, "HTTP/1.0 200 OK\r\n");
+    sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
+    sprintf(buf, "%sConnection: close\r\n", buf);
+    sprintf(buf, "%sContent-length: %d\r\n", buf, filesize);
+    sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype);
+    Rio_writen(fd, buf, strlen(buf));
+    printf("Response headers:\n");
+    printf("%s", buf);
+    
+    if (!only_head) {
+      srcfd = open(filename, O_RDONLY, 0);
+      srcp = malloc(filesize);
+      Rio_readn(srcfd, srcp, filesize);
+      Rio_writen(fd, srcp, filesize);
+      free(srcp);
+    }
+    exit(0);
   }
   VERBOSE("serve_static: exiting\n");
 }
@@ -229,12 +236,11 @@ void serve_dynamic(int fd, char *filename, char *cgiargs, int only_head) {
   char buf[MAXLINE], *emptylist[] = { NULL };
   
   /* Return first part of HTTP response */
-  sprintf(buf, "HTTP/1.0 200 OK\r\n");
-  Rio_writen(fd, buf, strlen(buf));
-  sprintf(buf, "Server: Tiny Web Server\r\n");
-  Rio_writen(fd, buf, strlen(buf));
-  
   if (Fork() == 0) {
+    sprintf(buf, "HTTP/1.0 200 OK\r\n");
+    Rio_writen(fd, buf, strlen(buf));
+    sprintf(buf, "Server: Tiny Web Server\r\n");
+    Rio_writen(fd, buf, strlen(buf));
     setenv("QUERY_STRING", cgiargs, 1);
     if (only_head) {
       setenv("REQUEST_METHOD", "HEAD", 1);
@@ -250,5 +256,10 @@ void sigchldHandler(int sig) {
   while (waitpid(-1, NULL, 0)  > 0) {
     printf("reap child\n");
   }
+  return;
+}
+
+void sigpipeHandler(int sig) {
+  exit(0);
   return;
 }
