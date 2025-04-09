@@ -60,6 +60,49 @@ void Getnameinfo(const struct sockaddr *sa, socklen_t salen, char *host,
 
 void Freeaddrinfo(struct addrinfo *res) { freeaddrinfo(res); }
 
+/************************************************
+ * Wrappers for Pthreads thread control functions
+ ************************************************/
+
+void Pthread_create(pthread_t *tidp, pthread_attr_t *attrp,
+                    void *(*routine)(void *), void *argp) {
+  int rc;
+
+  if ((rc = pthread_create(tidp, attrp, routine, argp)) != 0)
+    posix_error(rc, "Pthread_create error");
+}
+
+void Pthread_cancel(pthread_t tid) {
+  int rc;
+
+  if ((rc = pthread_cancel(tid)) != 0)
+    posix_error(rc, "Pthread_cancel error");
+}
+
+void Pthread_join(pthread_t tid, void **thread_return) {
+  int rc;
+
+  if ((rc = pthread_join(tid, thread_return)) != 0)
+    posix_error(rc, "Pthread_join error");
+}
+
+/* $begin detach */
+void Pthread_detach(pthread_t tid) {
+  int rc;
+
+  if ((rc = pthread_detach(tid)) != 0)
+    posix_error(rc, "Pthread_detach error");
+}
+/* $end detach */
+
+void Pthread_exit(void *retval) { pthread_exit(retval); }
+
+pthread_t Pthread_self(void) { return pthread_self(); }
+
+void Pthread_once(pthread_once_t *once_control, void (*init_function)()) {
+  pthread_once(once_control, init_function);
+}
+
 /*********************************************
  * Wrappers for unix process control functions
  *********************************************/
@@ -301,6 +344,15 @@ int Dup2(int fd1, int fd2) {
 
   if ((rc = dup2(fd1, fd2)) < 0)
     unix_error("Dup2 error");
+  return rc;
+}
+
+int Select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
+           struct timeval *timeout) {
+  int rc;
+
+  if ((rc = select(n, readfds, writefds, exceptfds, timeout)) < 0)
+    unix_error("Select error");
   return rc;
 }
 
