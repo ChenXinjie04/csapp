@@ -10,6 +10,7 @@ void thpool_init(thpool_t *tp, thjob tj_, void *vargp_)
   tj = tj_;
   vargp = vargp_;
   Sem_init(&tp->status_mutex, 0, 1);
+  Sem_init(&tp->read_mutex, 0, 1);
 
   for (i = 0; i < MAXNTHREAD; ++i) {
     tp->id[i] = -1;
@@ -62,10 +63,8 @@ void thpool_adjust(thpool_t *tp) {
       thpool_rmthread(tp);
       halve_cnt -= 1;
     }
-    V(&tp->status_mutex);
     tp->nthread /= 2;
     log_info("thpool_adjust: halve working thread (%d total).", tp->nthread);
-    return;
   }
   
   int should_double = (tp->nthread < MAXNTHREAD) && (tp->nrunning == tp->nthread);
@@ -75,11 +74,11 @@ void thpool_adjust(thpool_t *tp) {
       thpool_addthread(tp, vargp);
       double_cnt -= 1;
     }
-    V(&tp->status_mutex);
     tp->nthread *= 2;
     log_info("thpool_adjust: double working thread (%d total).", tp->nthread);
-    return;
   }
+  V(&tp->status_mutex);
+  return;
 }
 
 void thpool_changeStatusTid(thpool_t *tp, pthread_t tid, int status) {
@@ -91,4 +90,12 @@ void thpool_changeStatusTid(thpool_t *tp, pthread_t tid, int status) {
     V(&tp->status_mutex);
     log_info("thpool_changeStatusTid: thread status changes into (%d)", status);
   }
+}
+
+void thpool_readlock(thpool_t *tp) {
+  P(&tp->read_mutex);
+}
+
+void thpool_readunlock(thpool_t *tp) {
+  V(&tp->read_mutex);
 }

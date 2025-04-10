@@ -3,6 +3,7 @@
  * GET method to serve static and dynamic content.
  */
 #include "csapp.h"
+#include "threadPool.h"
 #include "sbuf.h"
 #include <_stdlib.h>
 #include <fcntl.h>
@@ -21,6 +22,13 @@
   
 static int verbose = 1;
 
+/* &begin struct for thread communication */
+typedef struct {
+  thpool_t *tp;
+  sbuf_t *sbufp;
+} tpool_sbuf_t;
+/* &end struct for thread communication */
+
 void doit(int fd);
 int read_requesthdrs(rio_t *rp, char *method);
 int parse_uri(char *uri, char *filename, char *cgiargs);
@@ -30,6 +38,7 @@ void serve_dynamic(int fd, char *filename, char *cgiargs, int only_head);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 void sigchldHandler(int sig);
 void sigpipeHandler(int sig);
+void *thread(void *vargp);
 
 int main(int argc, char *argv[]) {
   int listenfd, connfd;
@@ -37,6 +46,11 @@ int main(int argc, char *argv[]) {
   struct sockaddr_storage clientaddr;
   char hostname[MAXLINE], port[MAXLINE];
   static sbuf_t sbuf;
+  static thpool_t thpool;
+  static tpool_sbuf_t tpool_sbuf;
+  tpool_sbuf.sbufp = &sbuf;
+  tpool_sbuf.tp = &thpool;
+
 
   if (argc != 2) {
     fprintf(stderr, "usage: %s <port>\n", argv[0]);
@@ -49,6 +63,8 @@ int main(int argc, char *argv[]) {
   sbuf_init(&sbuf, NBUF);
 
   listenfd = Open_listenfd(argv[1]);
+  thpool_init(&thpool, thread, &sbuf);
+
   while (1) {
     clientlen = sizeof(struct sockaddr_storage);
     connfd = Accept(listenfd, (struct sockaddr *)&clientaddr, &clientlen);
@@ -264,4 +280,12 @@ void sigchldHandler(int sig) {
 void sigpipeHandler(int sig) {
   Pthread_cancel(Pthread_self());
   return;
+}
+
+void *thread(void *vargp) {
+  sbuf_t *sbufp = (sbuf_t *)vargp;
+  while (1) {
+    int connfd = sbuf_remove(sbufp);
+    doit(connfd);
+  }
 }
