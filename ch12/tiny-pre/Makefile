@@ -1,4 +1,4 @@
-CFLAGS = -O0 -m64 -Wall -pthread -Ilibs
+CFLAGS = -O0 -m64 -Wall -pthread -Ilibs -g -DNDEBUG
 CC = gcc
 
 all: tiny adder
@@ -21,6 +21,6 @@ sbuf.o: libs/sbuf.h libs/sbuf.c
 
 .PHONY: clean
 clean:
-	rm -rf csapp.o
+	rm -rf *.o
 	rm -rf tiny
 	rm -rf cgi-bin/adder

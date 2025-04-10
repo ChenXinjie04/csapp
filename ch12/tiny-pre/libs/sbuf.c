@@ -21,8 +21,10 @@ void sbuf_init(sbuf_t *sp, int n) {
 
 
 int sbuf_isfull(sbuf_t *sp) {
+  debug("sbuf_isfull: entering");
   int result;
   sem_getvalue(&sp->items, &result);
+  debug("sbuf_isfull: exiting result = %d sp->n=%d", result, sp->n);
   return result == sp->n;
 }
 
@@ -42,7 +44,6 @@ void sbuf_deinit(sbuf_t *sp) {
 void sbuf_insert(sbuf_t *sp, int item) {
   P(&sp->slots);
   P(&sp->mutex);
-  debug("producer: add item");
   sp->buf[++sp->rear % sp->n] = item;
   V(&sp->mutex);
   V(&sp->items);
@@ -54,7 +55,6 @@ int sbuf_remove(sbuf_t *sp) {
 
   P(&sp->items);
   P(&sp->mutex);
-  debug("customer: remove item");
   item = sp->buf[++sp->front % sp->n];
   sp->buf[sp->front % sp->n] = 0;
   V(&sp->mutex);

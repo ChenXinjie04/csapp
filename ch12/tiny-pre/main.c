@@ -5,9 +5,8 @@
 #include "csapp.h"
 #include "threadPool.h"
 #include "sbuf.h"
-#include <_stdlib.h>
-#include <fcntl.h>
-#include <sys/mman.h>
+#include "dbg.h"
+
 #include <sys/signal.h>
 #include <sys/socket.h>
 
@@ -17,10 +16,10 @@
       printf(msg, ##__VA_ARGS__); \
   }
 
-#define NBUF 10
+#define NBUF 1
 #define MAXNTHREAD 32
   
-static int verbose = 1;
+static int verbose = 0;
 
 /* &begin struct for thread communication */
 typedef struct {
@@ -39,18 +38,19 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
 void sigchldHandler(int sig);
 void sigpipeHandler(int sig);
 void *thread(void *vargp);
+void *load_detect(void *vargp);
 
 int main(int argc, char *argv[]) {
   int listenfd, connfd;
   socklen_t clientlen;
   struct sockaddr_storage clientaddr;
+  pthread_t detector_tid;
   char hostname[MAXLINE], port[MAXLINE];
   static sbuf_t sbuf;
   static thpool_t thpool;
   static tpool_sbuf_t tpool_sbuf;
   tpool_sbuf.sbufp = &sbuf;
   tpool_sbuf.tp = &thpool;
-
 
   if (argc != 2) {
     fprintf(stderr, "usage: %s <port>\n", argv[0]);
@@ -63,9 +63,12 @@ int main(int argc, char *argv[]) {
   sbuf_init(&sbuf, NBUF);
 
   listenfd = Open_listenfd(argv[1]);
-  thpool_init(&thpool, thread, &sbuf);
+  
+  Pthread_create(&detector_tid, NULL, load_detect, &tpool_sbuf);
+  thpool_init(&thpool, thread, &tpool_sbuf);
 
   while (1) {
+    debug("main: loop onece");
     clientlen = sizeof(struct sockaddr_storage);
     connfd = Accept(listenfd, (struct sockaddr *)&clientaddr, &clientlen);
     Getnameinfo((struct sockaddr *)&clientaddr, clientlen, 
@@ -283,9 +286,46 @@ void sigpipeHandler(int sig) {
 }
 
 void *thread(void *vargp) {
-  sbuf_t *sbufp = (sbuf_t *)vargp;
+  debug("thread: entering vargp [%p]", vargp);
+  tpool_sbuf_t *tpool_sbufp = (tpool_sbuf_t *)vargp;
+  check_mem(tpool_sbufp);
+  sbuf_t *sbufp = tpool_sbufp->sbufp;
+  check_mem(sbufp);
+  thpool_t *tp = tpool_sbufp->tp;
+  check_mem(tp);
   while (1) {
+    debug("thread: loop once");
+    thpool_changeStatusTid(tp, Pthread_self(), THP_RUNNING);
     int connfd = sbuf_remove(sbufp);
     doit(connfd);
+    thpool_changeStatusTid(tp, Pthread_self(), THP_WAITING);
   }
+  return NULL;
+error:
+  log_err("thread: error");
+  return NULL;
+}
+
+void *load_detect(void *vargp) {
+  debug("load_detect: entering");
+  tpool_sbuf_t *tpool_sbufp = (tpool_sbuf_t *)vargp;
+  check_mem(tpool_sbufp);
+  sbuf_t *sbufp = tpool_sbufp->sbufp;
+  check_mem(sbufp);
+  thpool_t *tp = tpool_sbufp->tp;
+  check_mem(tp);
+  while (1) {
+    if (sbuf_isfull(sbufp)) {
+      thpool_double(tp);
+    }  else if (sbuf_isempty(sbufp)) {
+      thpool_halve(tp);
+    } else {
+      debug("load_detect: load balanced");
+    }
+    sleep(1);
+  }
+  return NULL;
+error:
+  log_err("load_detect: error");
+  return NULL;
 }
