@@ -4,7 +4,7 @@
 #include "csapp.h"
 #include "sbuf.h"
 
-#define MAXNTHREAD 32
+#define MAXNTHREAD 16
 #define MINNTHREAD 1
 #define THP_RUNNING 0
 #define THP_WAITING 1

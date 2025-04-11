@@ -87,6 +87,7 @@ void thpool_halve(thpool_t *tp) {
     thpool_rmthread(tp);
     halve_cnt -= 1;
   }
+  pthread_testcancel();
   log_info("thpool_halve: halve working thread (%d total).", tp->nthread);
   debug("thpool_halve: exiting");
 }
