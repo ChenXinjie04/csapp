@@ -16,7 +16,7 @@
       printf(msg, ##__VA_ARGS__); \
   }
 
-#define NBUF 1
+#define NBUF 4
 #define MAXNTHREAD 32
   
 static int verbose = 0;
@@ -38,13 +38,14 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
 void sigchldHandler(int sig);
 void sigpipeHandler(int sig);
 void *thread(void *vargp);
-void *load_detect(void *vargp);
+void *load_detect_double(void *vargp);
+void *load_detect_halve(void *vargp);
 
 int main(int argc, char *argv[]) {
   int listenfd, connfd;
   socklen_t clientlen;
   struct sockaddr_storage clientaddr;
-  pthread_t detector_tid;
+  pthread_t detector_tid_double, detector_tid_halve;
   char hostname[MAXLINE], port[MAXLINE];
   static sbuf_t sbuf;
   static thpool_t thpool;
@@ -64,7 +65,9 @@ int main(int argc, char *argv[]) {
 
   listenfd = Open_listenfd(argv[1]);
   
-  Pthread_create(&detector_tid, NULL, load_detect, &tpool_sbuf);
+  Pthread_create(&detector_tid_double, NULL, load_detect_double, &tpool_sbuf);
+  Pthread_create(&detector_tid_halve, NULL, load_detect_halve, &tpool_sbuf);
+  debug("detector create success");
   thpool_init(&thpool, thread, &tpool_sbuf);
 
   while (1) {
@@ -286,7 +289,6 @@ void sigpipeHandler(int sig) {
 }
 
 void *thread(void *vargp) {
-  debug("thread: entering vargp [%p]", vargp);
   tpool_sbuf_t *tpool_sbufp = (tpool_sbuf_t *)vargp;
   check_mem(tpool_sbufp);
   sbuf_t *sbufp = tpool_sbufp->sbufp;
@@ -294,11 +296,24 @@ void *thread(void *vargp) {
   thpool_t *tp = tpool_sbufp->tp;
   check_mem(tp);
   while (1) {
-    debug("thread: loop once");
+    debug("thread: tid [%lu] waiting for statuslock.", Pthread_self());
+    thpool_statuslock(tp);
+    debug("thread: tid [%lu] getting statuslock.", Pthread_self());
+    thpool_lock(tp);
     thpool_changeStatusTid(tp, Pthread_self(), THP_RUNNING);
+    debug("thread: tid [%lu] status changed.", Pthread_self());
+    thpool_unlock(tp);
     int connfd = sbuf_remove(sbufp);
+    debug("thread: tid [%lu] get connfd (%d).", Pthread_self(), connfd);
+    thpool_statusunlock(tp);
+    debug("thread: tid [%lu] status lock release.", Pthread_self());
+
     doit(connfd);
+    debug("thread: consumer");
+    
+    thpool_lock(tp);
     thpool_changeStatusTid(tp, Pthread_self(), THP_WAITING);
+    thpool_unlock(tp);
   }
   return NULL;
 error:
@@ -306,23 +321,35 @@ error:
   return NULL;
 }
 
-void *load_detect(void *vargp) {
+void *load_detect_double(void *vargp) {
   debug("load_detect: entering");
   tpool_sbuf_t *tpool_sbufp = (tpool_sbuf_t *)vargp;
-  check_mem(tpool_sbufp);
   sbuf_t *sbufp = tpool_sbufp->sbufp;
-  check_mem(sbufp);
   thpool_t *tp = tpool_sbufp->tp;
-  check_mem(tp);
   while (1) {
-    if (sbuf_isfull(sbufp)) {
-      thpool_double(tp);
-    }  else if (sbuf_isempty(sbufp)) {
-      thpool_halve(tp);
-    } else {
-      debug("load_detect: load balanced");
-    }
-    sleep(1);
+    sbuf_Pfull(sbufp);
+    debug("double");
+    thpool_lock(tp);
+    thpool_double(tp);
+    thpool_unlock(tp);
+  }
+  return NULL;
+error:
+  log_err("load_detect: error");
+  return NULL;
+}
+
+void *load_detect_halve(void *vargp) {
+  debug("load_detect: entering");
+  tpool_sbuf_t *tpool_sbufp = (tpool_sbuf_t *)vargp;
+  sbuf_t *sbufp = tpool_sbufp->sbufp;
+  thpool_t *tp = tpool_sbufp->tp;
+  while (1) {
+    sbuf_Pempty(sbufp);
+    debug("halve");
+    thpool_lock(tp);
+    thpool_halve(tp);
+    thpool_unlock(tp);
   }
   return NULL;
 error:

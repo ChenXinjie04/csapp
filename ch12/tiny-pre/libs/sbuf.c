@@ -16,6 +16,7 @@ void sbuf_init(sbuf_t *sp, int n) {
   Sem_init(&sp->mutex, 0, 1);
   Sem_init(&sp->slots, 0, n);
   Sem_init(&sp->items, 0, 0);
+  Sem_init(&sp->full, 0, 0);
   debug("sbuf_init: exiting");
 }
 
@@ -45,6 +46,10 @@ void sbuf_insert(sbuf_t *sp, int item) {
   P(&sp->slots);
   P(&sp->mutex);
   sp->buf[++sp->rear % sp->n] = item;
+  if (sp->rear % sp->n == sp->front % sp->n) {
+    debug("sbuf full");
+    V(&sp->full);
+  }
   V(&sp->mutex);
   V(&sp->items);
 }
@@ -57,9 +62,26 @@ int sbuf_remove(sbuf_t *sp) {
   P(&sp->mutex);
   item = sp->buf[++sp->front % sp->n];
   sp->buf[sp->front % sp->n] = 0;
+  if (sp->rear % sp->n == sp->front % sp->n) {
+    V(&sp->empty);
+  }
   V(&sp->mutex);
   V(&sp->slots);
   return item;
 }
 
+void sbuf_Pfull(sbuf_t *sbufp) {
+  P(&sbufp->full);
+}
 
+void sbuf_Vfull(sbuf_t *sbufp) {
+  V(&sbufp->full);
+}
+
+void sbuf_Pempty(sbuf_t *sbufp) {
+  P(&sbufp->empty);
+}
+
+void sbuf_Vempty(sbuf_t *sbufp) {
+  V(&sbufp->empty);
+}

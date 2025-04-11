@@ -1,4 +1,5 @@
-CFLAGS = -O0 -m64 -Wall -pthread -Ilibs -g -DNDEBUG
+CFLAGS = -O0 -m64 -Wall -pthread -Ilibs
+# CFLAGS = -O0 -m64 -Wall -pthread -Ilibs -DNDEBUG
 CC = gcc
 
 all: tiny adder
