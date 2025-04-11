@@ -37,15 +37,16 @@ void serve_dynamic(int fd, char *filename, char *cgiargs, int only_head);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
 void sigchldHandler(int sig);
 void sigpipeHandler(int sig);
-void *thread(void *vargp);
+void *worker_thread(void *vargp);
 void *load_detect_double(void *vargp);
 void *load_detect_halve(void *vargp);
+void *get_work_thread(void *vargp);
 
 int main(int argc, char *argv[]) {
   int listenfd, connfd;
   socklen_t clientlen;
   struct sockaddr_storage clientaddr;
-  pthread_t detector_tid_double, detector_tid_halve;
+  pthread_t detector_tid_double, detector_tid_halve, get_work_tid;
   char hostname[MAXLINE], port[MAXLINE];
   static sbuf_t sbuf;
   static thpool_t thpool;
@@ -65,10 +66,11 @@ int main(int argc, char *argv[]) {
 
   listenfd = Open_listenfd(argv[1]);
   
+  thpool_init(&thpool, worker_thread, &tpool_sbuf);
   Pthread_create(&detector_tid_double, NULL, load_detect_double, &tpool_sbuf);
   Pthread_create(&detector_tid_halve, NULL, load_detect_halve, &tpool_sbuf);
+  Pthread_create(&get_work_tid, NULL, get_work_thread, &tpool_sbuf);
   debug("detector create success");
-  thpool_init(&thpool, thread, &tpool_sbuf);
 
   while (1) {
     debug("main: loop onece");
@@ -84,7 +86,7 @@ int main(int argc, char *argv[]) {
 }
 
 void doit(int fd) {
-  VERBOSE("doit: entering\n");
+  debug("entering fd=%d", fd);
   int is_static, only_head = 0, n;
   struct stat sbuf;
   char buf[MAXLINE], uri[MAXLINE], method[MAXLINE], version[MAXLINE];
@@ -94,7 +96,7 @@ void doit(int fd) {
   /* Read request line and headers */
   Rio_readinitb(&rio, fd);
   Rio_readlineb(&rio, buf, MAXLINE);
-  printf("Request headers:\n");
+  printf("Request headers:");
   printf("%s", buf);
   sscanf(buf, "%s %s %s", method, uri, version);
   if (strcasecmp(method, "GET") && strcasecmp(method, "HEAD") && strcasecmp(method, "POST")) {
@@ -109,7 +111,7 @@ void doit(int fd) {
     Rio_readnb(&rio, cgiargs, n);
   }
   only_head = !strcmp(method, "HEAD");
-  VERBOSE("doit: cgiargs=%s", cgiargs);
+  debug("cgiargs=%s", cgiargs);
   
   /* Parse URI from GET request */
   if (stat(filename, &sbuf) < 0) {
@@ -117,7 +119,7 @@ void doit(int fd) {
                 "Tiny couldn't find this file");
     return;
   }
-  VERBOSE("doit: is_static=%d filename=%s\n", is_static, filename);
+  debug("is_static=%d filename=%s", is_static, filename);
 
   if (is_static) {
     if (!S_ISREG(sbuf.st_mode) || !(S_IRUSR & sbuf.st_mode)) {
@@ -134,7 +136,7 @@ void doit(int fd) {
     serve_dynamic(fd, filename, cgiargs, only_head);
   }
   Close(fd);
-  VERBOSE("doit: exiting\n");
+  debug("exiting");
 }
 
 void clienterror(int fd, char *cause, char *errnum,
@@ -288,50 +290,35 @@ void sigpipeHandler(int sig) {
   return;
 }
 
-void *thread(void *vargp) {
+void *worker_thread(void *vargp) {
   tpool_sbuf_t *tpool_sbufp = (tpool_sbuf_t *)vargp;
-  check_mem(tpool_sbufp);
-  sbuf_t *sbufp = tpool_sbufp->sbufp;
-  check_mem(sbufp);
   thpool_t *tp = tpool_sbufp->tp;
-  check_mem(tp);
   while (1) {
-    debug("thread: tid [%lu] waiting for statuslock.", Pthread_self());
-    thpool_statuslock(tp);
-    debug("thread: tid [%lu] getting statuslock.", Pthread_self());
-    thpool_lock(tp);
-    thpool_changeStatusTid(tp, Pthread_self(), THP_RUNNING);
-    debug("thread: tid [%lu] status changed.", Pthread_self());
-    thpool_unlock(tp);
-    int connfd = sbuf_remove(sbufp);
-    debug("thread: tid [%lu] get connfd (%d).", Pthread_self(), connfd);
-    thpool_statusunlock(tp);
-    debug("thread: tid [%lu] status lock release.", Pthread_self());
-
+    int connfd = thpool_thread_get_work(tp, Pthread_self());
     doit(connfd);
-    debug("thread: consumer");
-    
-    thpool_lock(tp);
     thpool_changeStatusTid(tp, Pthread_self(), THP_WAITING);
-    thpool_unlock(tp);
+    debug("tid [%lu] commit a work", Pthread_self());
   }
-  return NULL;
-error:
-  log_err("thread: error");
-  return NULL;
+}
+
+void *get_work_thread(void *vargp) {
+  tpool_sbuf_t *tpool_sbufp = (tpool_sbuf_t *)vargp;
+  sbuf_t *sbufp = tpool_sbufp->sbufp;
+  thpool_t *tp = tpool_sbufp->tp;
+  while (1) {
+    int connfd = sbuf_remove(sbufp);
+    thpool_assign_work(tp, connfd);
+  }
 }
 
 void *load_detect_double(void *vargp) {
   debug("load_detect: entering");
   tpool_sbuf_t *tpool_sbufp = (tpool_sbuf_t *)vargp;
-  sbuf_t *sbufp = tpool_sbufp->sbufp;
+  sbuf_t *sp = tpool_sbufp->sbufp;
   thpool_t *tp = tpool_sbufp->tp;
   while (1) {
-    sbuf_Pfull(sbufp);
-    debug("double");
-    thpool_lock(tp);
+    sbuf_Pfull(sp);
     thpool_double(tp);
-    thpool_unlock(tp);
   }
   return NULL;
 error:
@@ -342,14 +329,11 @@ error:
 void *load_detect_halve(void *vargp) {
   debug("load_detect: entering");
   tpool_sbuf_t *tpool_sbufp = (tpool_sbuf_t *)vargp;
-  sbuf_t *sbufp = tpool_sbufp->sbufp;
+  sbuf_t *sp = tpool_sbufp->sbufp;
   thpool_t *tp = tpool_sbufp->tp;
   while (1) {
-    sbuf_Pempty(sbufp);
-    debug("halve");
-    thpool_lock(tp);
+    sbuf_Pempty(sp);
     thpool_halve(tp);
-    thpool_unlock(tp);
   }
   return NULL;
 error:

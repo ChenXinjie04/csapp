@@ -1,5 +1,5 @@
 CONCURRENT_LEVEL=5
-NREQUEST=10000
+NREQUEST=5000
 
 make clean
 make
@@ -7,7 +7,7 @@ make
 TINY_PID=$!
 ab -n ${NREQUEST} -c ${CONCURRENT_LEVEL} localhost:8000/ &
 apache_pid=$!
-sleep 2
+sleep 5
 code out.log
 jobs
 echo ${TINY_PID}
