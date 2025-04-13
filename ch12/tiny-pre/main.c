@@ -3,22 +3,22 @@
  * GET method to serve static and dynamic content.
  */
 #include "csapp.h"
-#include "threadPool.h"
-#include "sbuf.h"
 #include "dbg.h"
+#include "sbuf.h"
+#include "threadPool.h"
 
 #include <sys/signal.h>
 #include <sys/socket.h>
 
-#define VERBOSE(msg, ...) \
-  { \
-    if (verbose) \
-      printf(msg, ##__VA_ARGS__); \
+#define VERBOSE(msg, ...)                                                      \
+  {                                                                            \
+    if (verbose)                                                               \
+      printf(msg, ##__VA_ARGS__);                                              \
   }
 
 #define NBUF 4
 #define MAXNTHREAD 32
-  
+
 static int verbose = 0;
 
 /* &begin struct for thread communication */
@@ -34,7 +34,8 @@ int parse_uri(char *uri, char *filename, char *cgiargs);
 void serve_static(int fd, char *filename, int filesize, int only_head);
 void get_filetype(char *filename, char *filetype);
 void serve_dynamic(int fd, char *filename, char *cgiargs, int only_head);
-void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
+void clienterror(int fd, char *cause, char *errnum, char *shortmsg,
+                 char *longmsg);
 void sigchldHandler(int sig);
 void sigpipeHandler(int sig);
 void *worker_thread(void *vargp);
@@ -58,14 +59,14 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "usage: %s <port>\n", argv[0]);
     exit(0);
   }
-  
+
   Signal(SIGCHLD, sigchldHandler);
   Signal(SIGPIPE, sigpipeHandler);
-  
+
   sbuf_init(&sbuf, NBUF);
 
   listenfd = Open_listenfd(argv[1]);
-  
+
   thpool_init(&thpool, worker_thread, &tpool_sbuf);
   Pthread_create(&detector_tid_double, NULL, load_detect_double, &tpool_sbuf);
   Pthread_create(&detector_tid_halve, NULL, load_detect_halve, &tpool_sbuf);
@@ -76,8 +77,8 @@ int main(int argc, char *argv[]) {
     debug("main: loop onece");
     clientlen = sizeof(struct sockaddr_storage);
     connfd = Accept(listenfd, (struct sockaddr *)&clientaddr, &clientlen);
-    Getnameinfo((struct sockaddr *)&clientaddr, clientlen, 
-        hostname, MAXLINE, port, MAXLINE, 0);
+    Getnameinfo((struct sockaddr *)&clientaddr, clientlen, hostname, MAXLINE,
+                port, MAXLINE, 0);
     printf("Accepted connetion from (%s, %s)\n", hostname, port);
     sbuf_insert(&sbuf, connfd);
   }
@@ -99,9 +100,10 @@ void doit(int fd) {
   printf("Request headers:");
   printf("%s", buf);
   sscanf(buf, "%s %s %s", method, uri, version);
-  if (strcasecmp(method, "GET") && strcasecmp(method, "HEAD") && strcasecmp(method, "POST")) {
+  if (strcasecmp(method, "GET") && strcasecmp(method, "HEAD") &&
+      strcasecmp(method, "POST")) {
     clienterror(fd, method, "501", "Not implemented",
-        "Tiny does not implement this method");
+                "Tiny does not implement this method");
     return;
   }
   is_static = parse_uri(uri, filename, cgiargs);
@@ -112,7 +114,7 @@ void doit(int fd) {
   }
   only_head = !strcmp(method, "HEAD");
   debug("cgiargs=%s", cgiargs);
-  
+
   /* Parse URI from GET request */
   if (stat(filename, &sbuf) < 0) {
     clienterror(fd, filename, "404", "Not found",
@@ -123,15 +125,14 @@ void doit(int fd) {
 
   if (is_static) {
     if (!S_ISREG(sbuf.st_mode) || !(S_IRUSR & sbuf.st_mode)) {
-      clienterror(fd, filename, "403", 
-        "Forbidden", "Tiny couldn't read the file");
+      clienterror(fd, filename, "403", "Forbidden",
+                  "Tiny couldn't read the file");
     }
     serve_static(fd, filename, sbuf.st_size, only_head);
-  }
-  else {
+  } else {
     if (!S_ISREG(sbuf.st_mode) || !(S_IXUSR & sbuf.st_mode)) {
-      clienterror(fd, filename, "403",
-                "Forbidden", "Tiny couldn't run the CGI program");
+      clienterror(fd, filename, "403", "Forbidden",
+                  "Tiny couldn't run the CGI program");
     }
     serve_dynamic(fd, filename, cgiargs, only_head);
   }
@@ -139,18 +140,22 @@ void doit(int fd) {
   debug("exiting");
 }
 
-void clienterror(int fd, char *cause, char *errnum,
-                char *shortmsg, char *longmsg) {
+void clienterror(int fd, char *cause, char *errnum, char *shortmsg,
+                 char *longmsg) {
   VERBOSE("clienterror: entering\n");
   char buf[MAXLINE], body[MAXLINE];
-  
+
   /* Build the HTTP response body */
   sprintf(body, "<html><title>Tiny Error</title>");
-  sprintf(body, "%s<body bgcolor=""ffffff"">\r\n", body);
+  sprintf(body,
+          "%s<body bgcolor="
+          "ffffff"
+          ">\r\n",
+          body);
   sprintf(body, "%s%s: %s\r\n", body, errnum, shortmsg);
   sprintf(body, "%s<p>%s: %s\r\n", body, longmsg, cause);
   sprintf(body, "%s<hr><em>The Tiny web server</em>\r\n", body);
-  
+
   /* Print the HTTP response */
   sprintf(buf, "HTTP/1.0 %s %s\r\n", errnum, shortmsg);
   Rio_writen(fd, buf, strlen(buf));
@@ -166,7 +171,7 @@ int read_requesthdrs(rio_t *rp, char *method) {
   VERBOSE("read_requesthdrs: entering method=%s\n", method);
   char buf[MAXLINE];
   int n = 0;
-  
+
   Rio_readlineb(rp, buf, MAXLINE);
   while (strcmp(buf, "\r\n")) {
     Rio_readlineb(rp, buf, MAXLINE);
@@ -188,7 +193,7 @@ int parse_uri(char *uri, char *filename, char *cgiargs) {
     strcpy(cgiargs, "");
     strcpy(filename, ".");
     strcat(filename, uri);
-    if (filename[strlen(filename)-1] == '/') {
+    if (filename[strlen(filename) - 1] == '/') {
       strcat(filename, "home.html");
     }
     VERBOSE("parse_uri: exiting\n");
@@ -199,7 +204,7 @@ int parse_uri(char *uri, char *filename, char *cgiargs) {
     ptr = index(uri, '?');
     if (ptr) {
       *ptr = '\0';
-      strcpy(cgiargs, ptr+1);
+      strcpy(cgiargs, ptr + 1);
     } else {
       strcpy(cgiargs, "");
     }
@@ -214,7 +219,7 @@ void serve_static(int fd, char *filename, int filesize, int only_head) {
   VERBOSE("serve_static: entering\n");
   int srcfd;
   char *srcp, filetype[MAXLINE], buf[MAXBUF];
-  
+
   /* Send response head to client */
   get_filetype(filename, filetype);
   sprintf(buf, "HTTP/1.0 200 OK\r\n");
@@ -225,7 +230,7 @@ void serve_static(int fd, char *filename, int filesize, int only_head) {
   Rio_writen(fd, buf, strlen(buf));
   printf("Response headers:\n");
   printf("%s", buf);
-  
+
   if (!only_head) {
     srcfd = open(filename, O_RDONLY, 0);
     srcp = malloc(filesize);
@@ -259,8 +264,8 @@ void get_filetype(char *filename, char *filetype) {
  */
 void serve_dynamic(int fd, char *filename, char *cgiargs, int only_head) {
   VERBOSE("serve_dynamic: entering\n");
-  char buf[MAXLINE], *emptylist[] = { NULL };
-  
+  char buf[MAXLINE], *emptylist[] = {NULL};
+
   /* Return first part of HTTP response */
   if (Fork() == 0) {
     sprintf(buf, "HTTP/1.0 200 OK\r\n");
@@ -279,7 +284,7 @@ void serve_dynamic(int fd, char *filename, char *cgiargs, int only_head) {
 }
 
 void sigchldHandler(int sig) {
-  while (waitpid(-1, NULL, 0)  > 0) {
+  while (waitpid(-1, NULL, 0) > 0) {
     printf("reap child\n");
   }
   return;
